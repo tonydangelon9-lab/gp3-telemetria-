@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AD11 Racing · Estación de ingeniería</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+:root{--bg:#0B0E13;--bg2:#10151D;--surface:#161C26;--surface2:#1C2430;--line:#283142;--line2:#374255;--txt:#E8ECF3;--muted:#AEB7C7;--faint:#828CA1;--brand:#8B5CF6;--brand2:#A78BFA;--data:#27D3B6;--glow:#FFB23D;--susp:#5B8DEF;--motor:#FF5A1F;--piloto:#FF7AA8;}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:radial-gradient(1200px 600px at 85% -10%,rgba(139,92,246,.10),transparent 60%),var(--bg);color:var(--txt);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+.side{background:linear-gradient(180deg,#11151d,#0c0f15);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 6px 18px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.brand img{width:46px;height:46px;border-radius:11px;border:1px solid var(--line2);object-fit:contain}
+.brand .eb{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.28em;color:var(--brand2)}
+.brand .tn{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;line-height:1.05}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:11px;background:none;border:none;color:var(--muted);font-family:'Inter';font-size:14px;text-align:left;padding:11px 13px;border-radius:10px;cursor:pointer;transition:.15s}
+.nav button:hover{background:var(--surface2);color:var(--txt)}
+.nav button.on{background:rgba(139,92,246,.14);color:var(--txt);box-shadow:inset 2px 0 0 var(--brand)}
+.eng{margin-top:auto;border-top:1px solid var(--line);padding-top:14px}
+.eng label{font-family:'IBM Plex Mono';font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:6px}
+.eng select{width:100%}
+.eng .db{font-family:'IBM Plex Mono';font-size:9px;color:var(--faint);margin-top:10px;line-height:1.5}
+.main{padding:26px 30px 60px;max-width:1320px}
+.top{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.top h1{font-family:'Space Grotesk',sans-serif;font-size:23px;font-weight:700;margin:0}
+.top .crumb{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
+.top .spacer{flex:1}
+.btn{background:var(--surface2);border:1px solid var(--line2);color:var(--txt);border-radius:10px;padding:10px 15px;font-family:'Space Grotesk';font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+.btn:hover{border-color:var(--brand)}.btn.pri{background:linear-gradient(180deg,var(--brand2),var(--brand));color:#0B0E13;border:none}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:13px;padding:16px}
+.stat .k{font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.stat .v{font-family:'Space Grotesk';font-size:27px;font-weight:700;margin-top:6px}
+.stat .s{font-size:12px;color:var(--muted);margin-top:3px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.panel{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:15px;padding:18px;margin-bottom:18px}
+.panel h2{font-family:'Space Grotesk';font-size:14px;margin:0 0 12px;font-weight:600;display:flex;gap:10px;align-items:center}
+.panel h2 .pill{font-family:'IBM Plex Mono';font-size:10px;color:var(--faint);font-weight:400;letter-spacing:.1em}
+.chartbox{position:relative;height:240px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:8px 11px;border-bottom:1px solid var(--line)}
+td{padding:10px 11px;border-bottom:1px solid var(--line)}
+tr.row{cursor:pointer;transition:.12s}tr.row:hover td{background:var(--surface2)}
+.cir{font-family:'Space Grotesk';font-weight:600}.mono{font-family:'IBM Plex Mono';color:var(--muted)}
+select,input{background:var(--surface2);border:1px solid var(--line2);color:var(--txt);border-radius:9px;padding:9px 11px;font-family:'Inter';font-size:13px;outline:none}
+select:focus,input:focus{border-color:var(--brand)}
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar label{font-family:'IBM Plex Mono';font-size:10px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase}
+.hidden{display:none!important}
+.empty{padding:36px;text-align:center;color:var(--faint);border:1px dashed var(--line);border-radius:12px;line-height:1.6}
+.cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.kv{display:flex;gap:10px;font-size:13px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv .k{min-width:140px;font-family:'IBM Plex Mono';font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);padding-top:2px}
+.delta{font-family:'Space Grotesk';font-weight:700;font-size:22px}.delta.up{color:var(--data)}.delta.down{color:var(--motor)}
+.finding{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--brand);border-radius:11px;padding:12px 14px;margin-bottom:9px}
+.finding .t{font-family:'Space Grotesk';font-weight:600;font-size:13.5px;margin-bottom:4px}.finding .d{font-size:13px;color:var(--muted);line-height:1.5}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:7px}@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:1000px){.app{grid-template-columns:1fr}.side{position:static;height:auto}.stats{grid-template-columns:1fr 1fr}.grid2,.cols2{grid-template-columns:1fr}}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:12px;background:var(--surface2);border:1px solid var(--line2,#27314a);border-radius:999px;padding:6px 11px;cursor:pointer}.chk input{accent-color:var(--brand)}
+.finding{border-left:3px solid var(--brand);background:var(--surface2);border-radius:8px;padding:8px 12px;margin:6px 0}.finding .t{font-weight:600;font-size:13px}.finding .d{font-size:12px;color:var(--faint);font-family:"IBM Plex Mono",monospace}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}.tbl th,.tbl td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line2,#27314a)}.tbl th{color:var(--faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}.tbl td{font-family:"IBM Plex Mono",monospace}
+.rsel{font-size:11px;padding:2px 5px;border-radius:6px;background:var(--surface);border:1px solid var(--line2,#27314a);color:var(--ink,#e8ecf3)}
+.inp{width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--line2,#27314a);border-radius:8px;padding:9px 11px;color:var(--ink,#e8ecf3);margin:4px 0 10px;font-size:14px}.inp:focus{outline:none;border-color:var(--brand)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><img src="data:image/jpeg;base64,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" alt="AD11"><div><div class="eb">ESTACIÓN DE INGENIERÍA</div><div class="tn">AD11 Racing</div></div></div>
+    <nav class="nav">
+      <button data-v="panel" class="on">▦ Panel</button>
+      <button data-v="pilotos">◑ Pilotos</button>
+      <button data-v="motos">⛭ Motos</button>
+      <button data-v="cmp">⇄ Comparar</button>
+      <button data-v="tele">∿ Telemetría (CSV)</button>
+      <button data-v="hist">≡ Historial</button>
+    </nav>
+    <div class="eng">
+      <label>Usuario</label>
+      <select id="engSel"></select>
+      <label style="margin-top:10px">Rol</label>
+      <select id="roleSel"><option>admin</option><option>ingeniero</option><option>mecánico</option><option>piloto</option></select>
+      <div class="db" id="dbState"></div>
+      <button class="btn" id="logoutBtn" style="margin-top:10px;display:none;width:100%">Cerrar sesión</button>
+      <button class="btn" id="backupBtn" style="margin-top:8px;width:100%">⬇ Backup de datos</button>
+      <button class="btn" id="restoreBtn" data-perm="delete" style="margin-top:6px;width:100%">⬆ Restaurar backup</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section id="panel">
+      <div class="top"><h1>Panel</h1><span class="crumb">Visión del equipo</span><span class="spacer"></span><button class="btn" id="seed">+ Datos de ejemplo</button></div>
+      <div class="stats" id="statCards"></div>
+      <div class="panel"><h2>Progresión de mejor vuelta <span class="pill">por piloto · segundos</span></h2><div class="chartbox"><canvas id="chLap"></canvas></div></div>
+      <div class="grid2">
+        <div class="panel"><h2>Sesiones por circuito</h2><div class="chartbox"><canvas id="chCirc"></canvas></div></div>
+        <div class="panel"><h2>Mejor vuelta por piloto</h2><div class="chartbox"><canvas id="chRider"></canvas></div></div>
+      </div>
+      <div class="panel"><h2>Últimas sesiones</h2><div id="panelTable"></div></div>
+    </section>
+
+    <section id="pilotos" class="hidden">
+      <div class="top"><h1>Pilotos</h1><span class="crumb">Historial por piloto</span></div>
+      <div class="toolbar"><label>Piloto</label><select id="pilSel"></select></div>
+      <div id="pilOut"></div>
+    </section>
+
+    <section id="motos" class="hidden">
+      <div class="top"><h1>Motos</h1><span class="crumb">Historial por moto</span></div>
+      <div class="toolbar"><label>Moto</label><select id="motoSel"></select></div>
+      <div id="motoOut"></div>
+    </section>
+
+    <section id="cmp" class="hidden">
+      <div class="top"><h1>Comparar sesiones</h1><span class="crumb">Antes / después de un cambio</span></div>
+      <div class="toolbar"><label>Modo</label><select id="cmpMode"><option value="ses">Sesión vs sesión</option><option value="pil">Piloto vs piloto</option><option value="moto">Moto vs moto</option></select><select id="selA"></select><span class="mono">vs</span><select id="selB"></select><button class="btn pri" id="doCmp">Comparar</button><button class="btn" id="aiCmp">Analizar diferencia (IA)</button></div>
+      <div id="cmpOut"></div>
+    </section>
+
+    <section id="tele" class="hidden">
+      <div class="top"><h1>Telemetría</h1><span class="crumb">Análisis por vuelta · por canal · puntos críticos</span></div>
+      <div class="toolbar">
+        <button class="btn" id="teleA">Cargar CSV A</button><span id="teleAName" class="mono"></span>
+        <button class="btn" id="teleB">Cargar CSV B</button><span id="teleBName" class="mono"></span>
+      </div>
+      <div class="toolbar" id="teleCtl" style="display:none">
+        <label>Vuelta A</label><select id="lapA"></select>
+        <label>Vuelta B</label><select id="lapB"></select>
+        <label>Alinear por</label><select id="alignSel"><option value="muestra">Nº de muestra</option><option value="tiempo">Tiempo</option><option value="distancia">Distancia</option><option value="vuelta">Vuelta (0–100%)</option></select>
+        <button class="btn pri" id="teleGo">Dibujar</button>
+      </div>
+      <div class="toolbar" id="chanCtl" style="display:none;flex-wrap:wrap"></div>
+      <div class="toolbar" id="secCtl" style="display:none">
+        <label>Sectores</label>
+        <select id="secMode"><option value="eq">Iguales (N)</option><option value="cur">Curvas (auto por velocidad)</option></select>
+        <input id="secN" type="number" min="2" max="12" value="3" style="width:64px">
+        <button class="btn" id="aiTele">⚡ Analizar con IA (setup / pilotaje)</button>
+      </div>
+      <div class="toolbar" id="csvSaveCtl" style="display:none">
+        <label>Conservar original</label>
+        <select id="csvSesSel"></select>
+        <button class="btn" id="csvSaveBtn">⬇ Adjuntar CSV A a la sesión</button>
+        <span id="csvSaveMsg" class="mono" style="color:var(--faint)"></span>
+      </div>
+      <div id="teleOut"><div class="empty">Carga un CSV exportado de tu telemetría (AiM, i2M, MoTeC…). Detecta canales y vueltas, te deja elegir vuelta, activar/desactivar canales, alinear A vs B por tiempo/distancia/muestra/vuelta y marca puntos críticos automáticamente.</div></div>
+    </section>
+
+    <section id="hist" class="hidden">
+      <div class="top"><h1>Historial</h1><span class="crumb">Todas las sesiones</span><span class="spacer"></span><input type="file" id="imp" accept="application/json" class="hidden"><button class="btn" id="impBtn">Importar JSON</button></div>
+      <div class="toolbar"><label>Circuito</label><select id="fCirc"></select><label>Piloto</label><select id="fPil"></select><label>Moto</label><select id="fMoto"></select></div>
+      <div class="panel"><div id="histTable"></div></div>
+      <div id="detail"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ===== CONFIGURACIÓN ========================================================
+   mode "demo" -> prueba local. mode "backend" -> IA + base única por tu servidor. */
+const CONFIG={ mode:"gas", gasURL:"https://script.google.com/macros/s/AKfycbypkBR15N5V8stvuHYg40XrGZHyQSf-sW0ZN64pQw460TGO4p4lgR-EuTWbyw0cT9-M/exec", allowDirectInDemo:false }; // <-- pega la URL .../exec del Deploy del Web App de Apps Script // <-- PRODUCCIÓN: pon aquí la URL real de tu backend
+// PRODUCCIÓN: pon mode:"backend" (o allowDirectInDemo:false). Con eso NINGUNA llamada va directa a Anthropic; la API key vive solo en el servidor.
+const AI_MODEL="claude-sonnet-4-6";
+const API_ENDPOINT = CONFIG.backendURL + "/api/ai"; // PRODUCCIÓN: toda la IA pasa por el backend; nunca se llama a Anthropic desde el navegador.
+async function callAI(body){ if(_GAS()){ return gasCall("ai", body); } if(CONFIG.mode!=="backend" && CONFIG.allowDirectInDemo===false){ throw new Error("IA deshabilitada fuera del backend (producción)."); } const r=await fetch(API_ENDPOINT,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},_auth()),body:JSON.stringify({model:AI_MODEL,max_tokens:1000,...body})}); return r.json(); }
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const num=v=>{const n=parseFloat(String(v==null?"":v).replace(",","."));return isNaN(n)?null:n;};
+const lapSec=v=>{if(!v)return null;const m=String(v).match(/(?:(\d+):)?(\d+(?:\.\d+)?)/);if(!m)return null;return (m[1]?parseInt(m[1])*60:0)+parseFloat(m[2]);};
+const fmtDate=d=>d?new Date(d).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):"";
+const CATNAME={suspension:"Suspensión",electronica:"Electrónica",freno:"Freno",piloto:"Piloto",motor:"Motor",neumatico:"Neumático"};
+const COLORS=["#8B5CF6","#27D3B6","#5B8DEF","#FFB23D","#FF7AA8","#FF5A1F","#A78BFA"];
+const motoName=s=>((s.marca||"")+" "+(s.moto||"")).trim()||"—";
+
+/* ===== Almacenamiento (misma base que la móvil; backend si CONFIG.mode) ===== */
+const MEM={};const hasStore=(typeof window.storage!=="undefined")&&window.storage;const _BK=()=>CONFIG.mode==="backend";
+const _GAS=()=>CONFIG.mode==="gas";
+async function gasCall(action,payload){ const body=JSON.stringify(Object.assign({action:action,token:(typeof TOKEN!=="undefined"?TOKEN:null)},payload||{})); const r=await fetch(CONFIG.gasURL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body}); if(!r.ok)throw new Error("HTTP "+r.status); return r.json(); }
+async function sGet(k){ if(_GAS()){try{const j=await gasCall("kv_get",{key:k});return (j&&j.value!=null)?j.value:null;}catch(e){return null;}} if(_BK()){try{const r=await fetch(CONFIG.backendURL+"/api/kv?key="+encodeURIComponent(k),{headers:_auth()});if(!r.ok)return null;const j=await r.json();return (j&&j.value!=null)?j.value:null;}catch(e){return null;}} try{if(hasStore){const r=await window.storage.get(k);return r?r.value:null;}}catch(e){}return (k in MEM)?MEM[k]:null; }
+async function sSet(k,v){ if(_GAS()){try{await gasCall("kv_set",{key:k,value:v});return;}catch(e){return;}} if(_BK()){try{await fetch(CONFIG.backendURL+"/api/kv",{method:"PUT",headers:Object.assign({"Content-Type":"application/json","x-ad11-role":(typeof ROLE!=="undefined"?ROLE:"admin")},_auth()),body:JSON.stringify({key:k,value:v})});return;}catch(e){return;}} try{if(hasStore){await window.storage.set(k,v);return;}}catch(e){}MEM[k]=v; }
+async function sDel(k){ if(_GAS()){try{await gasCall("kv_del",{key:k});return;}catch(e){return;}} if(_BK()){try{await fetch(CONFIG.backendURL+"/api/kv?key="+encodeURIComponent(k),{method:"DELETE",headers:Object.assign({"x-ad11-role":(typeof ROLE!=="undefined"?ROLE:"admin")},_auth())});return;}catch(e){return;}} try{if(hasStore){await window.storage.delete(k);}}catch(e){}delete MEM[k]; }
+async function sList(p){ if(_GAS()){try{const j=await gasCall("kv_list",{prefix:p});return j.keys||[];}catch(e){return[];}} if(_BK()){try{const r=await fetch(CONFIG.backendURL+"/api/kv/list?prefix="+encodeURIComponent(p),{headers:_auth()});if(!r.ok)return[];const j=await r.json();return j.keys||[];}catch(e){return[];}} try{if(hasStore){const r=await window.storage.list(p);return r?r.keys:[];}}catch(e){}return Object.keys(MEM).filter(k=>k.startsWith(p)); }
+
+let SESSIONS=[];
+/* ===== Esquema de datos único + IDs + backup (migrable) =================== */
+const AD11={
+  schemaVersion:1,
+  slug(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"na";},
+  id(prefix){return prefix+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);},
+  pilotoId(s){return "pil_"+AD11.slug(s.piloto);},
+  motoId(s){return "mot_"+AD11.slug((s.marca||"")+"-"+(s.moto||""));},
+  eventoId(s){return "evt_"+AD11.slug((s.evento||s.circuito||"")+"-"+((s.fecha||(s.savedAt||"").slice(0,10))||""));},
+  // Deja una sesión en el formato único, sin perder lo que ya trae. No es destructivo.
+  normalize(s){ if(!s||typeof s!=="object")return s;
+    if(!s.schemaVersion) s.schemaVersion=AD11.schemaVersion;   // se sella una vez; nunca se re-escribe
+    if(!s.csvOriginal)   s.csvOriginal=[];                      // referencias a los CSV originales (siempre se conservan)
+    if(!s.sessionId) s.sessionId=(s.__key&&s.__key.indexOf("sesion:")===0)?s.__key.slice(7):AD11.id("ses");
+    if(!s.pilotoId)  s.pilotoId=AD11.pilotoId(s);
+    if(!s.motoId)    s.motoId=AD11.motoId(s);
+    if(!s.eventoId)  s.eventoId=AD11.eventoId(s);
+    if(!s.equipo)    s.equipo="AD11 Racing";
+    if(!s.origen)    s.origen="escritorio";
+    return s; }
+};
+async function exportBackup(){
+  const data={schema:AD11.schemaVersion, exportedAt:new Date().toISOString(), kv:{}};
+  try{
+    if(_GAS()){ const j=await gasCall("export",{}); data.kv=j.kv||{}; }
+    else { const pref=["sesion:","ref:","tyre:","piloto:","moto:","evento:","ui:"]; for(const p of pref){ const keys=await sList(p); for(const k of keys){ const v=await sGet(k); if(v!=null)data.kv[k]=v; } } }
+  }catch(e){ alert("No se pudo leer la base: "+e.message); return; }
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="ad11-backup-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+}
+function importBackup(){
+  if(!can("delete")){ alert("Tu rol ("+ROLE+") no puede restaurar copias."); return; }
+  const inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
+  inp.onchange=async e=>{ const file=e.target.files[0]; if(!file)return; let data;
+    try{ data=JSON.parse(await file.text()); }catch(err){ alert("Archivo no válido."); return; }
+    const kv=data.kv||{}; const keys=Object.keys(kv); if(!keys.length){ alert("El backup no tiene datos."); return; }
+    if(!confirm("Restaurar "+keys.length+" registros. Los datos actuales con la misma clave se sobrescriben. ¿Continuar?"))return;
+    try{ if(_GAS()){ await gasCall("import",{kv}); } else { for(const k of keys) await sSet(k,kv[k]); } }
+    catch(err){ alert("No se pudo restaurar: "+err.message); return; }
+    alert("Restaurados "+keys.length+" registros."); await loadSessions(); await loadEng(); renderPanel();
+  };
+  inp.click();
+}
+async function saveCsvOriginal(){
+  if(!CSVA||!CSVA.text){ alert("Carga un CSV A primero."); return; }
+  if(!can("write")){ alert("Tu rol ("+ROLE+") no puede guardar."); return; }
+  const sid=$("csvSesSel").value; const ses=SESSIONS.find(x=>(x.sessionId===sid)||((x.__key||"")==="sesion:"+sid));
+  if(!ses){ alert("Elige una sesión para asociar el CSV."); return; }
+  $("csvSaveMsg").textContent="Guardando original…";
+  try{
+    let ref;
+    if(_GAS()){ const j=await gasCall("csv_save",{name:(ses.sessionId+"__"+CSVA.name),content:CSVA.text}); if(j.error)throw new Error(j.error); ref={name:CSVA.name,fileId:j.fileId,url:j.url,bytes:j.bytes,savedAt:new Date().toISOString()}; }
+    else { const key="csv:"+ses.sessionId+":"+Date.now(); await sSet(key,CSVA.text); ref={name:CSVA.name,key:key,bytes:CSVA.text.length,savedAt:new Date().toISOString()}; }
+    ses.csvOriginal=ses.csvOriginal||[]; ses.csvOriginal.push(ref);
+    await sSet(ses.__key||("sesion:"+ses.sessionId), JSON.stringify(ses));
+    $("csvSaveMsg").textContent="Original conservado ✓ ("+(ref.bytes||0)+" bytes)";
+  }catch(e){ $("csvSaveMsg").textContent="Error: "+e.message; }
+}
+function wireBackup(){ const b=$("backupBtn"); if(b)b.onclick=exportBackup; const r=$("restoreBtn"); if(r)r.onclick=importBackup; }
+async function loadSessions(){ if(_GAS()){ try{ const j=await gasCall("kv_dump",{prefix:"sesion:"}); const out=(j.items||[]).map(it=>{try{const v=it[1];const o=(typeof v==="string")?JSON.parse(v):v;o.__key=it[0];return o;}catch(e){return null;}}).filter(Boolean); out.forEach(o=>AD11.normalize(o));out.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||"")); SESSIONS=out; return out; }catch(e){} } const keys=await sList("sesion:");const out=[];for(const k of keys){const raw=await sGet(k);if(!raw)continue;try{const o=JSON.parse(raw);o.__key=k;out.push(o);}catch(e){}}out.forEach(o=>AD11.normalize(o));out.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||""));SESSIONS=out;return out;}
+
+/* ===== Charts ============================================================== */
+const CHARTS={};
+function chartReady(){ if(window.Chart){ Chart.defaults.color="#AEB7C7"; Chart.defaults.borderColor="#283142"; Chart.defaults.font.family="Inter"; return true;} return false; }
+function makeChart(id,cfg){ if(!chartReady())return; const c=$(id); if(!c)return; if(CHARTS[id])CHARTS[id].destroy(); CHARTS[id]=new Chart(c,cfg); }
+function lapDatasets(list,by){const g={};list.forEach(s=>{const k=by(s)||"—";const t=Date.parse(s.savedAt||"");const y=lapSec(s.mejorVuelta);if(y==null||isNaN(t))return;(g[k]=g[k]||[]).push({x:t,y});});return Object.keys(g).map((k,i)=>({label:k,data:g[k].sort((a,b)=>a.x-b.x),borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length],tension:.25,pointRadius:4,fill:false}));}
+const timeX={type:"linear",ticks:{callback:v=>new Date(v).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'})}};
+const lapOpts={responsive:true,maintainAspectRatio:false,scales:{x:timeX,y:{title:{display:true,text:"seg"}}},plugins:{legend:{position:"bottom",labels:{boxWidth:12}}}};
+const barOpts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}};
+
+/* ===== Navegación ========================================================== */
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  ['panel','pilotos','motos','cmp','tele','hist'].forEach(v=>$(v).classList.add('hidden'));
+  $(b.dataset.v).classList.remove('hidden');
+  ({panel:renderPanel,pilotos:fillPilotos,motos:fillMotos,cmp:fillCompare,tele:renderTeleView,hist:renderHist}[b.dataset.v]||(()=>{}))();
+});
+
+/* ===== Tablas ============================================================== */
+function table(list){return `<table><thead><tr><th>Circuito</th><th>Moto · piloto</th><th>Mejor vuelta</th><th>Fecha</th></tr></thead><tbody>`+list.map(s=>`<tr class="row" data-k="${s.__key}"><td class="cir">${esc(s.circuito||"—")}</td><td class="mono">${esc(motoName(s))} · ${esc(s.piloto||"")}</td><td class="mono">${esc(s.mejorVuelta||"—")}</td><td class="mono">${fmtDate(s.savedAt)}</td></tr>`).join("")+`</tbody></table>`;}
+function empty(){return `<div class="empty">No hay sesiones en esta base.<br>Con el backend en producción verás aquí lo que el equipo guarda desde el teléfono. Para probar ahora, pulsa <b>“+ Datos de ejemplo”</b>.</div>`;}
+function bindRows(id){document.querySelectorAll(`#${id} tr.row`).forEach(r=>r.onclick=()=>openDetail(r.dataset.k));}
+
+/* ===== Panel =============================================================== */
+function renderPanel(){
+  const n=SESSIONS.length,circs=new Set(SESSIONS.map(s=>s.circuito).filter(Boolean)),pil=new Set(SESSIONS.map(s=>s.piloto).filter(Boolean)),mot=new Set(SESSIONS.map(motoName).filter(x=>x!=="—"));
+  const laps=SESSIONS.map(s=>lapSec(s.mejorVuelta)).filter(x=>x!=null);const best=laps.length?Math.min(...laps):null;
+  $("statCards").innerHTML=[["Sesiones",n,""],["Pilotos",pil.size,[...pil].join(", ").slice(0,28)],["Motos",mot.size,[...mot][0]||"—"],["Mejor vuelta",best!=null?best.toFixed(3)+"s":"—",""]].map(c=>`<div class="stat"><div class="k">${c[0]}</div><div class="v">${esc(c[1])}</div><div class="s">${esc(c[2])}</div></div>`).join("");
+  if(!n){$("panelTable").innerHTML=empty();return;}
+  makeChart("chLap",{type:"line",data:{datasets:lapDatasets(SESSIONS,s=>s.piloto)},options:lapOpts});
+  const bc={};SESSIONS.forEach(s=>{const c=s.circuito||"—";bc[c]=(bc[c]||0)+1;});
+  makeChart("chCirc",{type:"bar",data:{labels:Object.keys(bc),datasets:[{data:Object.values(bc),backgroundColor:"#8B5CF6"}]},options:barOpts});
+  const br={};SESSIONS.forEach(s=>{const y=lapSec(s.mejorVuelta);if(y==null)return;const r=s.piloto||"—";br[r]=br[r]==null?y:Math.min(br[r],y);});
+  makeChart("chRider",{type:"bar",data:{labels:Object.keys(br),datasets:[{data:Object.values(br),backgroundColor:"#27D3B6"}]},options:{...barOpts,scales:{y:{title:{display:true,text:"seg"}}}}});
+  $("panelTable").innerHTML=table(SESSIONS.slice(0,8));bindRows("panelTable");
+}
+
+/* ===== Pilotos ============================================================= */
+function fillPilotos(){const pil=[...new Set(SESSIONS.map(s=>s.piloto).filter(Boolean))];$("pilSel").innerHTML='<option value="">— elige —</option>'+pil.map(p=>`<option>${esc(p)}</option>`).join("");if(pil[0]){$("pilSel").value=pil[0];renderPiloto(pil[0]);}else $("pilOut").innerHTML=empty();}
+$("pilSel").onchange=()=>renderPiloto($("pilSel").value);
+function renderPiloto(p){if(!p){$("pilOut").innerHTML="";return;}const list=SESSIONS.filter(s=>s.piloto===p);const laps=list.map(s=>lapSec(s.mejorVuelta)).filter(x=>x!=null);const best=laps.length?Math.min(...laps):null;const bestS=list.find(s=>lapSec(s.mejorVuelta)===best);
+  let h=`<div class="stats"><div class="stat"><div class="k">Sesiones</div><div class="v">${list.length}</div></div><div class="stat"><div class="k">Mejor vuelta</div><div class="v">${best!=null?best.toFixed(3):"—"}</div><div class="s">${esc(bestS?bestS.circuito:"")}</div></div><div class="stat"><div class="k">Circuitos</div><div class="v">${new Set(list.map(s=>s.circuito).filter(Boolean)).size}</div></div><div class="stat"><div class="k">Motos</div><div class="v">${new Set(list.map(motoName)).size}</div></div></div>`;
+  h+=`<div class="panel"><h2>Progresión de ${esc(p)}</h2><div class="chartbox"><canvas id="chPil"></canvas></div></div>`;
+  if(bestS){const dl=(bestS.componentes||{}).del||{},tr=(bestS.componentes||{}).tras||{},nu=bestS.neumatico||{};h+=`<div class="panel"><h2>Mejor reglaje <span class="pill">${esc(bestS.circuito||"")} · ${esc(bestS.mejorVuelta||"")}</span></h2><div class="cols2"><div><div class="kv"><span class="k">Susp. del.</span><span>muelle ${esc(dl.muelle||"-")}, comp ${esc(dl.compL||"-")}/${esc(dl.compH||"-")}, reb ${esc(dl.reb||"-")}, sag ${esc(dl.sagS||"-")}/${esc(dl.sagR||"-")}</span></div><div class="kv"><span class="k">Susp. tras.</span><span>muelle ${esc(tr.muelle||"-")}, comp ${esc(tr.compL||"-")}/${esc(tr.compH||"-")}, reb ${esc(tr.reb||"-")}, sag ${esc(tr.sagS||"-")}/${esc(tr.sagR||"-")}</span></div></div><div><div class="kv"><span class="k">Neumático</span><span>${esc(nu.marca||"")} ${esc(nu.modelo||"")} · ${esc(nu.presD||"-")}/${esc(nu.presT||"-")} bar</span></div><div class="kv"><span class="k">Sensaciones</span><span>${esc(bestS.sensaciones||"—")}</span></div></div></div></div>`;}
+  h+=`<div class="panel"><h2>Sesiones</h2>${table(list)}</div>`;
+  $("pilOut").innerHTML=h;bindRows("pilOut");
+  makeChart("chPil",{type:"line",data:{datasets:lapDatasets(list,s=>s.circuito)},options:lapOpts});
+}
+
+/* ===== Motos =============================================================== */
+function fillMotos(){const m=[...new Set(SESSIONS.map(motoName).filter(x=>x!=="—"))];$("motoSel").innerHTML='<option value="">— elige —</option>'+m.map(x=>`<option>${esc(x)}</option>`).join("");if(m[0]){$("motoSel").value=m[0];renderMoto(m[0]);}else $("motoOut").innerHTML=empty();}
+$("motoSel").onchange=()=>renderMoto($("motoSel").value);
+function renderMoto(m){if(!m){$("motoOut").innerHTML="";return;}const list=SESSIONS.filter(s=>motoName(s)===m);const laps=list.map(s=>lapSec(s.mejorVuelta)).filter(x=>x!=null);const best=laps.length?Math.min(...laps):null;
+  let h=`<div class="stats"><div class="stat"><div class="k">Sesiones</div><div class="v">${list.length}</div></div><div class="stat"><div class="k">Mejor vuelta</div><div class="v">${best!=null?best.toFixed(3):"—"}</div></div><div class="stat"><div class="k">Pilotos</div><div class="v">${new Set(list.map(s=>s.piloto).filter(Boolean)).size}</div></div><div class="stat"><div class="k">Circuitos</div><div class="v">${new Set(list.map(s=>s.circuito).filter(Boolean)).size}</div></div></div>`;
+  h+=`<div class="panel"><h2>Progresión de ${esc(m)} <span class="pill">por piloto</span></h2><div class="chartbox"><canvas id="chMoto"></canvas></div></div>`;
+  h+=`<div class="panel"><h2>Sesiones</h2>${table(list)}</div>`;
+  $("motoOut").innerHTML=h;bindRows("motoOut");
+  makeChart("chMoto",{type:"line",data:{datasets:lapDatasets(list,s=>s.piloto)},options:lapOpts});
+}
+
+/* ===== Detalle ============================================================= */
+function openDetail(key){const s=SESSIONS.find(x=>x.__key===key);if(!s)return;const cm=s.componentes||{},dl=cm.del||{},tr=cm.tras||{},nu=s.neumatico||{},a=s.analysis;const kv=(k,v)=>v?`<div class="kv"><span class="k">${k}</span><span>${esc(v)}</span></div>`:"";
+  let h=`<div class="panel"><h2>${esc(s.circuito||"Sesión")} <span class="pill">${esc(s.piloto||"")} · ${fmtDate(s.savedAt)}</span></h2><div class="cols2"><div>`+kv("Moto",motoName(s)+" "+(s.anio||""))+kv("Categoría",s.categoria)+kv("Equipo",s.equipo||"AD11 Racing")+kv("Resultado",s.resultado)+kv("Mejor vuelta",s.mejorVuelta)+kv("Condiciones",`Amb ${s.tempAmb||"-"}° · Pista ${s.tempPista||"-"}° · ${s.estadoPista||"-"}`)+kv("Neumático",(nu.marca||"")+" "+(nu.modelo||"")+" | "+(nu.presD||"-")+"/"+(nu.presT||"-"))+`</div><div>`+kv("Susp. del.",`muelle ${dl.muelle||"-"}, comp ${dl.compL||"-"}/${dl.compH||"-"}, reb ${dl.reb||"-"}, sag ${dl.sagS||"-"}/${dl.sagR||"-"}`)+kv("Susp. tras.",`muelle ${tr.muelle||"-"}, comp ${tr.compL||"-"}/${tr.compH||"-"}, reb ${tr.reb||"-"}, sag ${tr.sagS||"-"}/${tr.sagR||"-"}`)+kv("Reglaje/notas",cm.notas)+kv("Sensaciones",s.sensaciones)+`</div></div>`;
+  if(a){h+=`<div style="margin-top:16px"><div class="finding"><div class="t">Veredicto</div><div class="d">${esc(a.veredicto||a.resumen||"")}</div></div>`;(a.hallazgos||[]).forEach(x=>{h+=`<div class="finding"><div class="t">${esc(x.canal||"")} · ${esc(CATNAME[x.categoria]||x.categoria||"")}</div><div class="d"><b>Observa:</b> ${esc(x.observacion||"")}<br><b>Acción:</b> ${esc(x.accion||"")}</div></div>`;});h+=`</div>`;}
+  h+=`<div style="margin-top:12px">${can('delete')?`<button class="btn" onclick="delSess('${key}')">Borrar</button>`:'<span class="mono" style="color:var(--faint)">Rol sin permiso de borrado</span>'}</div></div>`;
+  $("detail").innerHTML=h;$("detail").scrollIntoView({behavior:"smooth"});
+}
+window.delSess=async k=>{ if(!can("delete")){alert("Tu rol ("+ROLE+") no puede borrar sesiones.");return;} await sDel(k);await loadSessions();renderHist(); };
+
+/* ===== Comparar ============================================================ */
+function fillCompare(){cmpOptions();$("cmpOut").innerHTML="";}
+const METRICS=[["Mejor vuelta (s)",s=>lapSec(s.mejorVuelta)],["Sag del.",s=>num((s.componentes?.del||{}).sagR)],["Sag tras.",s=>num((s.componentes?.tras||{}).sagR)],["Comp del.",s=>num((s.componentes?.del||{}).compL)],["Reb del.",s=>num((s.componentes?.del||{}).reb)],["Comp tras.",s=>num((s.componentes?.tras||{}).compL)],["Reb tras.",s=>num((s.componentes?.tras||{}).reb)],["Pres del.",s=>num((s.neumatico||{}).presD)],["Pres tras.",s=>num((s.neumatico||{}).presT)]];
+$("doCmp").onclick=()=>{const A=SESSIONS.find(s=>s.__key===$("selA").value),B=SESSIONS.find(s=>s.__key===$("selB").value);if(!A||!B){$("cmpOut").innerHTML='<div class="empty">Elige dos sesiones.</div>';return;}
+  const la=lapSec(A.mejorVuelta),lb=lapSec(B.mejorVuelta);let d="";
+  if(la!=null&&lb!=null){const dif=lb-la,better=dif<0;d=`<div class="panel"><h2>Diferencia de tiempo</h2><div class="delta ${better?'up':'down'}">${dif>0?'+':''}${dif.toFixed(3)} s</div><div class="mono" style="margin-top:6px">A ${la.toFixed(3)} → B ${lb.toFixed(3)} · ${better?'B más rápida':'A más rápida'}</div></div>`;}
+  const labels=[],da=[],db=[];METRICS.forEach(m=>{const va=m[1](A),vb=m[1](B);if(va==null&&vb==null)return;labels.push(m[0]);da.push(va);db.push(vb);});
+  $("cmpOut").innerHTML=d+`<div class="panel"><h2>Parámetros A vs B</h2><div class="chartbox"><canvas id="chCmp"></canvas></div></div>`;
+  makeChart("chCmp",{type:"bar",data:{labels,datasets:[{label:"A · "+(A.piloto||""),data:da,backgroundColor:"#8B5CF6"},{label:"B · "+(B.piloto||""),data:db,backgroundColor:"#27D3B6"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"}}}});
+};
+$("aiCmp").onclick=async()=>{const A=SESSIONS.find(s=>s.__key===$("selA").value),B=SESSIONS.find(s=>s.__key===$("selB").value);if(!A||!B){$("cmpOut").innerHTML='<div class="empty">Elige dos sesiones.</div>';return;}
+  const btn=$("aiCmp"),old=btn.textContent;btn.disabled=true;btn.innerHTML='<span class="spin"></span>Analizando…';
+  const pack=s=>({circuito:s.circuito,piloto:s.piloto,vuelta:s.mejorVuelta,susp:s.componentes,neu:s.neumatico,sens:s.sensaciones});
+  const sys=`Eres ingeniero de datos de motos. Compara A (antes) y B (despues de un cambio). Di si MEJORO, que cambio en el reglaje, su efecto probable y una recomendacion. No inventes; si faltan datos dilo. Devuelve SOLO JSON: {"veredicto":"","mejoro":"si|no|incierto","cambios":[{"campo":"","de":"","a":"","efecto":""}],"recomendacion":""}`;
+  try{const data=await callAI({system:sys,messages:[{role:"user",content:"A: "+JSON.stringify(pack(A))+"\nB: "+JSON.stringify(pack(B))}]});let raw=(data.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();const j=JSON.parse(raw);
+    let h=`<div class="panel"><h2>Análisis de la diferencia <span class="pill">IA</span></h2><div class="finding"><div class="t">${j.mejoro==='si'?'✓ Mejoró':j.mejoro==='no'?'✗ No mejoró':'~ Incierto'}</div><div class="d">${esc(j.veredicto||"")}</div></div>`;(j.cambios||[]).forEach(c=>h+=`<div class="finding"><div class="t">${esc(c.campo||"")}: ${esc(c.de||"")} → ${esc(c.a||"")}</div><div class="d">${esc(c.efecto||"")}</div></div>`);if(j.recomendacion)h+=`<div class="finding" style="border-left-color:var(--glow)"><div class="t">Recomendación</div><div class="d">${esc(j.recomendacion)}</div></div>`;h+=`</div>`;$("cmpOut").insertAdjacentHTML("afterbegin",h);
+  }catch(e){$("cmpOut").insertAdjacentHTML("afterbegin",'<div class="empty">No se pudo analizar ahora.</div>');}finally{btn.disabled=false;btn.textContent=old;}
+};
+
+/* ===== Historial =========================================================== */
+function fillSel(id,vals){const cur=$(id).value;$(id).innerHTML='<option value="">Todos</option>'+vals.map(v=>`<option>${esc(v)}</option>`).join("");$(id).value=cur;}
+function renderHist(){fillSel("fCirc",[...new Set(SESSIONS.map(s=>s.circuito).filter(Boolean))]);fillSel("fPil",[...new Set(SESSIONS.map(s=>s.piloto).filter(Boolean))]);fillSel("fMoto",[...new Set(SESSIONS.map(motoName).filter(x=>x!=="—"))]);
+  let show=SESSIONS;if($("fCirc").value)show=show.filter(s=>s.circuito===$("fCirc").value);if($("fPil").value)show=show.filter(s=>s.piloto===$("fPil").value);if($("fMoto").value)show=show.filter(s=>motoName(s)===$("fMoto").value);
+  $("histTable").innerHTML=show.length?table(show):empty();bindRows("histTable");$("detail").innerHTML="";}
+["fCirc","fPil","fMoto"].forEach(id=>$(id).onchange=renderHist);
+
+/* ===== Usuarios (multiusuario) ============================================= */
+let engineers=[],engineer="";
+async function loadEng(){try{engineers=JSON.parse((await sGet("ui:engineers"))||"[]");}catch(e){engineers=[];}engineer=(await sGet("ui:engineer"))||engineers[0]||"Ingeniero 1";if(!engineers.length){engineers=[engineer];await sSet("ui:engineers",JSON.stringify(engineers));}fillEng();}
+function fillEng(){$("engSel").innerHTML=engineers.map(e=>`<option ${e===engineer?'selected':''}>${esc(e)}</option>`).join("")+'<option value="__add__">＋ Nuevo usuario…</option>';$("dbState").textContent=(CONFIG.mode==="gas"?"Apps Script · base compartida":CONFIG.mode==="backend"?"Backend · base compartida":"Demo · base local")+" · "+SESSIONS.length+" sesiones";}
+$("engSel").onchange=async()=>{if($("engSel").value==="__add__"){const n=prompt("Nombre del ingeniero/usuario:");if(n&&n.trim()){if(!engineers.includes(n.trim()))engineers.push(n.trim());engineer=n.trim();await sSet("ui:engineers",JSON.stringify(engineers));await sSet("ui:engineer",engineer);}fillEng();}else{engineer=$("engSel").value;await sSet("ui:engineer",engineer);}};
+
+/* ===== Importar / ejemplo ================================================== */
+$("impBtn").onclick=()=>{ if(!can("seed")){alert("Tu rol no puede importar.");return;} $("imp").click(); };
+$("imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{try{const o=JSON.parse(r.result);const key="sesion:"+Date.now();o.sessionId=key.slice(7);o.origen="import";AD11.normalize(o);await sSet(key,JSON.stringify(o));await loadSessions();renderPanel();}catch(err){alert("JSON no válido");}};r.readAsText(f);};
+$("seed").onclick=async()=>{
+  if(!can("seed")){alert("Tu rol no puede cargar datos.");return;}
+  const mk=(cir,pil,moto,lap,sagR,presD,off)=>({circuito:cir,marca:moto.split(" ")[0],moto:moto.split(" ").slice(1).join(" "),anio:"2024",categoria:"Superbike (SBK)",equipo:"AD11 Racing",resultado:(off<2e8?"P1":"P4"),piloto:pil,mejorVuelta:lap,tempAmb:"22",tempPista:"38",estadoPista:"Seco",savedAt:new Date(Date.now()-off).toISOString(),componentes:{horq:"Öhlins NIX 30",amort:"Öhlins TTX",peso:"78",del:{muelle:"9.5",compL:"12",compH:"1.5",reb:"14",sagS:"30",sagR:String(sagR)},tras:{muelle:"95",compL:"10",compH:"1.5",reb:"12",sagS:"10",sagR:"30"}},neumatico:{marca:"Pirelli",modelo:"Diablo SBK SC1",presD:String(presD),presT:"1.7"},sensaciones:"Entrada algo dura en la frenada 1."});
+  const data=[mk("Termas de Río Hondo","Antonio","Aprilia RSV4","1:42.350",33,1.9,5e8),mk("Termas de Río Hondo","Antonio","Aprilia RSV4","1:41.980",31,1.85,3e8),mk("Termas de Río Hondo","Antonio","Aprilia RSV4","1:41.640",31,1.85,1e8),mk("El Villicum","Marco","Yamaha R1","1:38.420",32,1.95,4e8),mk("El Villicum","Marco","Yamaha R1","1:38.110",30,1.9,2e8)];
+  for(let i=0;i<data.length;i++){const key="sesion:"+(Date.now()+i);const o=data[i];o.sessionId=key.slice(7);AD11.normalize(o);await sSet(key,JSON.stringify(o));}
+  await loadSessions();renderPanel();fillEng();
+};
+
+/* ===== Init ================================================================ */
+/* ===== Roles / permisos (UI; la seguridad real se aplica en el backend) ===== */
+let ROLE="admin";
+const PERMS={ delete:["admin","ingeniero"], edit:["admin","ingeniero"], seed:["admin","ingeniero","mecánico"] };
+function can(a){ return (PERMS[a]||[]).includes(ROLE); }
+async function loadRole(){ ROLE=(await sGet("ui:role"))||"admin"; const r=$("roleSel"); if(r)r.value=ROLE; }
+function applyRole(){ const s=$("seed"),im=$("impBtn"); if(s)s.style.display=can("seed")?"":"none"; if(im)im.style.display=can("seed")?"":"none"; const rb=$("restoreBtn"); if(rb)rb.style.display=can("delete")?"":"none"; }
+document.addEventListener("change",e=>{ if(e.target&&e.target.id==="roleSel"){ ROLE=e.target.value; sSet("ui:role",ROLE); applyRole(); } });
+
+/* ===== Comparación por modo (sesión / piloto / moto) ======================= */
+function bestSessionBy(pred){ const l=SESSIONS.filter(pred); const w=l.filter(s=>lapSec(s.mejorVuelta)!=null); if(!w.length)return l[0]||null; return w.reduce((a,b)=>lapSec(b.mejorVuelta)<lapSec(a.mejorVuelta)?b:a); }
+function cmpOptions(){
+  const mode=$("cmpMode")?$("cmpMode").value:"ses"; let items=[];
+  if(mode==="ses"){ items=SESSIONS.map(s=>[s.__key,`${s.circuito||"?"} · ${s.piloto||""} · ${fmtDate(s.savedAt)}`]); }
+  else if(mode==="pil"){ items=[...new Set(SESSIONS.map(s=>s.piloto).filter(Boolean))].map(p=>{const b=bestSessionBy(s=>s.piloto===p);return b?[b.__key,`${p} — mejor ${b.mejorVuelta||"—"} (${b.circuito||""})`]:null;}).filter(Boolean); }
+  else { items=[...new Set(SESSIONS.map(motoName).filter(x=>x!=="—"))].map(m=>{const b=bestSessionBy(s=>motoName(s)===m);return b?[b.__key,`${m} — mejor ${b.mejorVuelta||"—"}`]:null;}).filter(Boolean); }
+  const o='<option value="">— elige —</option>'+items.map(it=>`<option value="${it[0]}">${esc(it[1])}</option>`).join("");
+  $("selA").innerHTML=o;$("selB").innerHTML=o; if(items[1])$("selA").value=items[1][0]; if(items[0])$("selB").value=items[0][0];
+}
+document.addEventListener("change",e=>{ if(e.target&&e.target.id==="cmpMode")cmpOptions(); });
+
+/* ===== Telemetría: análisis por vuelta, por canal, alineación y críticos === */
+let CSVA=null,CSVB=null,CHAN_ON={};
+function pickCSV(cb){const i=document.createElement("input");i.type="file";i.accept=".csv,.txt,text/csv";i.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>cb(f.name,r.result);r.readAsText(f);};i.click();}
+function bindTele(){ const a=$("teleA"); if(!a||a._b)return; a._b=1;
+  a.onclick=()=>pickCSV((n,t)=>{ROLE_OVR={};CSVA={name:n,text:t,data:parseCSV(t)};$("teleAName").textContent=n;afterLoad();});
+  $("teleB").onclick=()=>pickCSV((n,t)=>{CSVB={name:n,text:t,data:parseCSV(t)};$("teleBName").textContent=n;afterLoad();});
+  $("teleGo").onclick=drawTele; $("alignSel").onchange=drawTele; $("lapA").onchange=drawTele; $("lapB").onchange=drawTele;
+  $("secMode").onchange=drawTele; $("secN").onchange=drawTele; $("aiTele").onclick=aiTelemetria; $("csvSaveBtn").onclick=saveCsvOriginal;
+}
+function renderTeleView(){ bindTele(); }
+function parseCSV(text){
+  const raw=text.split(/\r?\n/).filter(l=>l.trim()!=="");
+  if(!raw.length)return null;
+  // delimitador: el de la línea más densa de las primeras 20
+  let best=raw[0],bn=-1; raw.slice(0,20).forEach(l=>{const m=Math.max((l.match(/,/g)||[]).length,(l.match(/;/g)||[]).length,(l.match(/\t/g)||[]).length);if(m>bn){bn=m;best=l;}});
+  const sc=(best.match(/;/g)||[]).length,cc=(best.match(/,/g)||[]).length,tc=(best.match(/\t/g)||[]).length;
+  const d=(sc>cc&&sc>=tc)?";":(tc>cc?"\t":",");
+  const tok=l=>l.split(d).map(x=>x.replace(/^"|"$/g,"").trim());
+  const numRow=t=>{if(t.length<2)return false;let ok=0;t.forEach(x=>{if(x!==""&&!isNaN(parseFloat(x.replace(",","."))))ok++;});return ok>=Math.ceil(t.length*0.6);};
+  // inicio de datos: primera fila que arranca una racha de >=3 filas numéricas
+  let D=-1; for(let i=0;i<raw.length-2;i++){if(numRow(tok(raw[i]))&&numRow(tok(raw[i+1]))&&numRow(tok(raw[i+2]))){D=i;break;}}
+  if(D<0){for(let i=0;i<raw.length;i++){if(numRow(tok(raw[i]))){D=i;break;}}}
+  if(D<0)D=raw.length;
+  const unitish=t=>{const nv=t.filter(x=>x!=="");return t.some(x=>/[\[\]]/.test(x))||(nv.length>0&&nv.every(x=>x.length<=10)&&nv.some(x=>/(bar|mm|km\/?h|m\/s|rpm|deg|°|%|kpa|psi|volt|hz|sec|\bms\b|\bg\b|\bv\b|\bs\b)/i.test(x)));};
+  let hi=-1,ui=-1;
+  if(D>0&&!numRow(tok(raw[D-1]))){
+    const aboveNon=D>=2&&!numRow(tok(raw[D-2]));
+    if(aboveNon&&unitish(tok(raw[D-1]))){ui=D-1;hi=D-2;}else{hi=D-1;}
+  }
+  let headers=hi>=0?tok(raw[hi]):null;
+  const ncol=D<raw.length?tok(raw[D]).length:(headers?headers.length:0);
+  if(!headers||headers.length<2){headers=[];for(let j=0;j<ncol;j++)headers.push(j===0?"tiempo":"canal"+j);hi=-1;}
+  const seen={}; headers=headers.map((h,j)=>{let name=(h&&h.length)?h:("col"+j);if(seen[name]!=null)name=name+"_"+j;seen[name]=1;return name;});
+  const units=ui>=0?tok(raw[ui]):[];
+  const cols={}; headers.forEach(h=>cols[h]=[]);
+  for(let i=D;i<raw.length;i++){const t=tok(raw[i]);if(!numRow(t))continue;headers.forEach((h,j)=>{cols[h].push(parseFloat(String(t[j]==null?"":t[j]).replace(",",".")));});}
+  return {headers,units,cols,meta:{delim:d,headerRow:hi,unitRow:ui,dataRow:D}};
+}
+let ROLE_OVR={};
+const ROLES=["x","lap","dist","freno","suspDel","suspTras","gas","vel","rpm","angulo","otros"];
+function chanRole(name){ if(ROLE_OVR[name])return ROLE_OVR[name]; const n=String(name).toLowerCase();
+  if(/dist/.test(n))return"dist";
+  if(/lap|vuelta|beacon/.test(n))return"lap";
+  if(/time|tiempo|^t$|^s$|timestamp/.test(n))return"x";
+  if(/brake|freno|brk|bpres/.test(n))return"freno";
+  if((/fork|horq|delant|front|\bfl\b|\bfr\b/.test(n))&&(/sus|pos|trav|damp|fork|horq|delant|front/.test(n)))return"suspDel";
+  if((/shock|amort|traser|rear|\brl\b|\brr\b/.test(n))&&(/sus|pos|trav|damp|shock|amort|traser|rear/.test(n)))return"suspTras";
+  if(/throttle|tps|\bthr\b|gas|accel/.test(n))return"gas";
+  if((/speed|veloc|gps|wheel/.test(n))&&!/wheelbase/.test(n))return"vel";
+  if(/rpm|revs|eng.?speed|engine/.test(n))return"rpm";
+  if(/lean|incl|roll|angle/.test(n))return"angulo";
+  return"otros";}
+function unitOf(d,h){ if(!d||!d.units)return""; const i=d.headers.indexOf(h); return (i>=0&&d.units[i])?d.units[i]:""; }
+const RLBL={x:"Tiempo/eje",lap:"Vuelta",dist:"Distancia",freno:"Freno",suspDel:"Susp. delantera",suspTras:"Susp. trasera",gas:"Gas / TPS",vel:"Velocidad",rpm:"RPM",angulo:"Inclinación",otros:"Sin uso"};
+const RCOL={freno:"#FFB23D",suspDel:"#5B8DEF",suspTras:"#8B5CF6",gas:"#27D3B6",vel:"#A78BFA",rpm:"#FF5A1F",angulo:"#FF7AA8",otros:"#8893A6"};
+function lapsOf(d){const lk=d.headers.find(h=>chanRole(h)==="lap");if(!lk)return[];return [...new Set(d.cols[lk])].filter(v=>v!=null&&!isNaN(v)).sort((a,b)=>a-b);}
+function valChans(d){return d.headers.filter(h=>!["x","lap","dist","otros"].includes(chanRole(h)));}
+function afterLoad(){
+  if(!CSVA||!CSVA.data)return;
+  $("teleCtl").style.display="flex";
+  const la=lapsOf(CSVA.data);
+  $("lapA").innerHTML='<option value="__all__">Todas / completo</option>'+la.map(l=>`<option value="${l}">Vuelta ${l}</option>`).join("");
+  if(CSVB&&CSVB.data){const lb=lapsOf(CSVB.data);$("lapB").innerHTML='<option value="__all__">Todas / completo</option>'+lb.map(l=>`<option value="${l}">Vuelta ${l}</option>`).join("");}
+  else $("lapB").innerHTML='<option value="__all__">— (carga CSV B)</option>';
+  CHAN_ON={}; valChans(CSVA.data).forEach(h=>CHAN_ON[h]=true);
+  const M=CSVA.data.meta||{};
+  $("chanCtl").style.display="flex";
+  $("chanCtl").innerHTML=`<label style="align-self:center">Canales / mapeo <span class="mono" style="color:var(--faint)">(delim "${M.delim||","}", cabecera fila ${(M.headerRow??-1)+1||"auto"}${M.unitRow>=0?", unidades fila "+(M.unitRow+1):""})</span></label>`+CSVA.data.headers.map(h=>{const u=unitOf(CSVA.data,h);const role=chanRole(h);const isVal=!["x","lap","dist","otros"].includes(role);return `<span class="chk">${isVal?`<input type="checkbox" data-ch="${esc(h)}" checked>`:''}${esc(h)}${u?` <span class="mono" style="color:var(--faint)">[${esc(u)}]</span>`:''} <select data-rch="${esc(h)}" class="rsel">${ROLES.map(r=>`<option value="${r}" ${r===role?'selected':''}>${RLBL[r]}</option>`).join('')}</select></span>`;}).join("");
+  $("chanCtl").querySelectorAll('input[data-ch]').forEach(c=>c.onchange=()=>{CHAN_ON[c.dataset.ch]=c.checked;drawTele();});
+  $("chanCtl").querySelectorAll('select[data-rch]').forEach(sl=>sl.onchange=()=>{ROLE_OVR[sl.dataset.rch]=sl.value;afterLoad();});
+  $("secCtl").style.display="flex";
+  $("csvSaveCtl").style.display="flex";
+  $("csvSesSel").innerHTML = SESSIONS.length ? SESSIONS.map(x=>`<option value="${esc(x.sessionId||((x.__key||"").slice(7)))}">${esc((x.circuito||x.evento||"?")+" · "+(x.piloto||"")+" · "+fmtDate(x.savedAt))}</option>`).join("") : '<option value="">(sin sesiones aún)</option>';
+  drawTele();
+}
+function buildSeries(d,lapVal,align){
+  const lk=d.headers.find(h=>chanRole(h)==="lap");
+  let idx=d.cols[d.headers[0]].map((_,i)=>i);
+  if(lk&&lapVal&&lapVal!=="__all__"){idx=[];d.cols[lk].forEach((v,i)=>{if(String(v)===String(lapVal))idx.push(i);});}
+  const xT=d.headers.find(h=>chanRole(h)==="x"), xD=d.headers.find(h=>chanRole(h)==="dist");
+  let X;
+  if(align==="tiempo"&&xT){const a=idx.map(i=>d.cols[xT][i]);const b=a[0]||0;X=a.map(v=>v-b);}
+  else if(align==="distancia"&&xD){const a=idx.map(i=>d.cols[xD][i]);const b=a[0]||0;X=a.map(v=>v-b);}
+  else if(align==="vuelta"){X=idx.map((_,k)=>idx.length>1?(100*k/(idx.length-1)):0);}
+  else {X=idx.map((_,k)=>k);}
+  return {idx,X};
+}
+function ptsIdx(X,col,idx,max){const n=idx.length;const step=n>max?n/max:1;const o=[];for(let k=0;k<n;k+=step){const kk=Math.floor(k);const y=col[idx[kk]];if(y==null||isNaN(y))continue;o.push({x:X[kk],y});}return o;}
+function axisLabel(a){return {tiempo:"tiempo (s)",distancia:"distancia (m)",vuelta:"% de vuelta",muestra:"muestra"}[a]||"muestra";}
+function axisVal(x,a){return a==="vuelta"?(x.toFixed(0)+"%"):a==="tiempo"?(x.toFixed(2)+"s"):a==="distancia"?(x.toFixed(0)+"m"):("#"+Math.round(x));}
+function criticalPoints(dA,SA,dB,SB,align){
+  const out=[]; const idx=SA.idx, X=SA.X;
+  const find=(d,role)=>d.headers.find(h=>chanRole(h)===role);
+  const arr=h=>idx.map(i=>dA.cols[h][i]);
+  const fb=find(dA,"freno"); if(fb){const a=arr(fb);let mi=0;for(let i=1;i<a.length;i++)if(a[i]>a[mi])mi=i;out.push({ch:fb,x:X[mi],y:a[mi],col:RCOL.freno,t:"Mayor presión de freno",d:`${(+a[mi]).toFixed(1)} · ${axisVal(X[mi],align)}`});}
+  ["suspDel","suspTras"].forEach(role=>{const h=find(dA,role);if(!h)return;const a=arr(h).filter(v=>!isNaN(v));if(!a.length)return;const mx=Math.max(...a);const all=arr(h);let mi=all.indexOf(mx);const bottom=all.filter(v=>v>=0.97*mx).length>1;out.push({ch:h,x:X[mi],y:mx,col:RCOL[role],t:(role==="suspDel"?"Horquilla":"Amortiguador")+(bottom?" — posible fondo":" — máx. recorrido"),d:`${mx.toFixed(1)} · ${axisVal(X[mi],align)}`});});
+  const sv=find(dA,"vel"); if(sv){const a=arr(sv);let mi=0;for(let i=1;i<a.length;i++)if(a[i]<a[mi])mi=i;out.push({ch:sv,x:X[mi],y:a[mi],col:RCOL.vel,t:"Pérdida de velocidad (mínima)",d:`${(+a[mi]).toFixed(1)} · ${axisVal(X[mi],align)}`});}
+  const gp=find(dA,"gas"); if(gp){const a=arr(gp);const mx=Math.max(...a);let oi=a.findIndex(v=>v>0.15*mx);if(oi<0)oi=0;let extra="";if(dB&&SB){const hb=find(dB,"gas");if(hb){const b=SB.idx.map(i=>dB.cols[hb][i]);const mb=Math.max(...b);let oiB=b.findIndex(v=>v>0.15*mb);if(oiB>=0){const xa=X[oi],xb=SB.X[oiB];extra=` · B abre en ${axisVal(xb,align)} (${xb<xa?"más temprano":xb>xa?"más tarde":"igual"})`;}}}out.push({ch:gp,x:X[oi],y:a[oi],col:RCOL.gas,t:"Apertura de gas",d:`${axisVal(X[oi],align)}${extra}`});}
+  if(dB&&SB){["rpm","angulo"].forEach(role=>{const h=find(dA,role),hb=find(dB,role);if(!h||!hb)return;const a=idx.map(i=>dA.cols[h][i]);const b=SB.idx.map(i=>dB.cols[hb][i]);const n=Math.min(a.length,b.length);let mi=0,md=0;for(let i=0;i<n;i++){const dd=Math.abs((a[i]||0)-(b[i]||0));if(dd>md){md=dd;mi=i;}}out.push({ch:h,x:X[mi],y:a[mi],col:RCOL[role],t:"Mayor diferencia de "+(role==="rpm"?"RPM":"inclinación")+" (A vs B)",d:`Δ ${md.toFixed(1)} · ${axisVal(X[mi],align)}`});});}
+  return out;
+}
+function buildSectors(d,S,align){
+  const n=S.idx.length; if(n<6)return [];
+  const mode=$("secMode")?$("secMode").value:"eq", N=Math.max(2,Math.min(12,parseInt($("secN").value)||3));
+  const vKey=d.headers.find(h=>chanRole(h)==="vel");
+  let bounds=[];
+  if(mode==="cur" && vKey){
+    const v=S.idx.map(i=>d.cols[vKey][i]); const apex=[]; const w=Math.max(3,Math.floor(n/50));
+    for(let i=w;i<n-w;i++){let lo=true;for(let k=i-w;k<=i+w;k++){if(v[k]<v[i]){lo=false;break;}}if(lo&&(!apex.length||i-apex[apex.length-1]>w*2))apex.push(i);}
+    if(apex.length>=2){bounds=[0];for(let a=1;a<apex.length;a++)bounds.push(Math.floor((apex[a-1]+apex[a])/2));bounds.push(n-1);}
+  }
+  if(bounds.length<3){bounds=[];for(let k=0;k<=N;k++)bounds.push(Math.floor(k*(n-1)/N));}
+  const tKey=d.headers.find(h=>chanRole(h)==="x"); const tArr=tKey?S.idx.map(i=>d.cols[tKey][i]):null;
+  const segs=[]; const isCur=(mode==="cur"&&bounds.length>N+1);
+  for(let b=0;b<bounds.length-1;b++){
+    const i0=bounds[b], i1=bounds[b+1]; const seg={label:(isCur?("T"+(b+1)):("S"+(b+1))), i0,i1};
+    const sub=role=>{const k=d.headers.find(z=>chanRole(z)===role);if(!k)return null;const a=[];for(let i=i0;i<=i1;i++){const y=d.cols[k][S.idx[i]];if(y!=null&&!isNaN(y))a.push(y);}return a.length?a:null;};
+    const v=sub("vel"); if(v){seg.vmin=Math.min(...v);seg.vmax=Math.max(...v);seg.vavg=v.reduce((p,c)=>p+c,0)/v.length;}
+    const fr=sub("freno"); if(fr)seg.fmax=Math.max(...fr);
+    const ga=sub("gas"); if(ga)seg.gavg=ga.reduce((p,c)=>p+c,0)/ga.length;
+    const sd=sub("suspDel"); if(sd)seg.sdmax=Math.max(...sd);
+    if(tArr&&tArr[i0]!=null&&tArr[i1]!=null)seg.t=tArr[i1]-tArr[i0];
+    segs.push(seg);
+  }
+  return segs;
+}
+function sectorsFor(dA,SA,dB,SB,align){
+  const segA=buildSectors(dA,SA,align); let segB=[];
+  if(dB&&SB&&segA.length){
+    const nA=SA.idx.length,nB=SB.idx.length;
+    const tKeyB=dB.headers.find(h=>chanRole(h)==="x"); const tB=tKeyB?SB.idx.map(i=>dB.cols[tKeyB][i]):null;
+    segB=segA.map(s=>{const i0=Math.round(s.i0/(nA-1)*(nB-1)),i1=Math.round(s.i1/(nA-1)*(nB-1));const o={i0,i1};
+      const sub=role=>{const k=dB.headers.find(z=>chanRole(z)===role);if(!k)return null;const a=[];for(let i=i0;i<=i1;i++){const y=dB.cols[k][SB.idx[i]];if(y!=null&&!isNaN(y))a.push(y);}return a.length?a:null;};
+      const v=sub("vel"); if(v)o.vmin=Math.min(...v); const fr=sub("freno"); if(fr)o.fmax=Math.max(...fr);
+      if(tB&&tB[i0]!=null&&tB[i1]!=null)o.t=tB[i1]-tB[i0]; return o;});
+  }
+  return {segA,segB};
+}
+function renderSectors(segA,segB,align){
+  if(!segA.length)return '<div class="panel"><h2>Sectores</h2><div class="mono" style="color:var(--faint)">Pocos datos para segmentar esta vuelta.</div></div>';
+  const hasB=segB.length===segA.length;
+  const rows=segA.map((s,i)=>{const b=hasB?segB[i]:null;
+    const tA=s.t!=null?s.t.toFixed(2)+"s":"—", tB=b&&b.t!=null?b.t.toFixed(2)+"s":"—";
+    const hasd=(s.t!=null&&b&&b.t!=null); const dv=hasd?(s.t-b.t):null;
+    const dT=hasd?((dv>=0?"+":"")+dv.toFixed(2)):"—"; const dCol=hasd?(dv>0?"#FF6B6B":"#27D3B6"):"var(--faint)";
+    return `<tr><td>${s.label}</td><td>${tA}</td>${hasB?`<td>${tB}</td><td style="color:${dCol};font-weight:600">${dT}</td>`:""}<td>${s.vmin!=null?s.vmin.toFixed(0):"—"}${b&&b.vmin!=null?` / ${b.vmin.toFixed(0)}`:""}</td><td>${s.fmax!=null?s.fmax.toFixed(1):"—"}</td></tr>`;}).join("");
+  const cur=segA[0].label[0]==="T";
+  return `<div class="panel"><h2>${cur?"Curvas (auto)":"Sectores (iguales)"} <span class="pill">A${hasB?" vs B":""} · alineado por ${axisLabel(align)}</span></h2><table class="tbl"><thead><tr><th>${cur?"Curva":"Sector"}</th><th>t A</th>${hasB?"<th>t B</th><th>Δ t</th>":""}<th>Vel mín${hasB?" A/B":""}</th><th>Freno máx A</th></tr></thead><tbody>${rows}</tbody></table>${hasB?'<div class="mono" style="color:var(--faint);font-size:11px;margin-top:6px">Δ t en verde = A más rápida en ese tramo; rojo = A pierde tiempo ahí.</div>':'<div class="mono" style="color:var(--faint);font-size:11px;margin-top:6px">Carga un CSV B para ver el Δ de tiempo por tramo.</div>'}</div>`;
+}
+function channelStats(d,S){const o={};valChans(d).forEach(h=>{const a=S.idx.map(i=>d.cols[h][i]).filter(x=>x!=null&&!isNaN(x));if(a.length)o[h]={min:+Math.min(...a).toFixed(1),max:+Math.max(...a).toFixed(1),avg:+(a.reduce((p,c)=>p+c,0)/a.length).toFixed(1)};});return o;}
+async function aiTelemetria(){
+  if(!CSVA||!CSVA.data){alert("Carga un CSV primero.");return;}
+  const align=$("alignSel").value;
+  const SA=buildSeries(CSVA.data,$("lapA").value,align);
+  const SB=(CSVB&&CSVB.data)?buildSeries(CSVB.data,$("lapB").value,align):null;
+  const SEC=sectorsFor(CSVA.data,SA,SB&&CSVB.data,SB,align);
+  const crit=criticalPoints(CSVA.data,SA,SB&&CSVB.data,SB,align);
+  const summary={ archivoA:CSVA.name, vueltaA:$("lapA").value, archivoB:CSVB?CSVB.name:null, vueltaB:CSVB?$("lapB").value:null, alineacion:align,
+    sectores:SEC.segA.map((s,i)=>({tramo:s.label,t_A:s.t,t_B:(SEC.segB[i]||{}).t,vmin_A:s.vmin,vmin_B:(SEC.segB[i]||{}).vmin,freno_max_A:s.fmax,gas_medio_A:s.gavg,susp_del_max_A:s.sdmax})),
+    puntos_criticos:crit.map(c=>({punto:c.t,detalle:c.d})), stats_canales:channelStats(CSVA.data,SA) };
+  const box=document.createElement("div"); box.className="panel"; box.innerHTML='<h2>Análisis IA</h2><div class="mono" style="color:var(--faint)">Analizando telemetría real…</div>'; $("teleOut").prepend(box);
+  try{
+    const sys='Eres ingeniero de datos de un equipo de motos de competición. Analiza estas métricas REALES de telemetría (no inventes cifras; usa solo las dadas). Devuelve EXCLUSIVAMENTE JSON, sin texto extra ni markdown: {"resumen":"...","hallazgos":[{"tipo":"setup|pilotaje","area":"suspensión|neumático|freno|geometría|trazada|frenada|apertura de gas|otro","detalle":"...","evidencia":"tramo o punto + cifras","prioridad":"alta|media|baja"}]}. Identifica posibles problemas de setup y de pilotaje y da recomendaciones accionables en boxes. Si hay CSV B, explica dónde y por qué A gana o pierde tiempo.';
+    const r=await callAI({system:sys,messages:[{role:"user",content:"Telemetría (JSON):\n"+JSON.stringify(summary)}]});
+    const txt=((r&&r.content)||[]).map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
+    let j=null; try{j=JSON.parse(txt);}catch(e){}
+    if(j&&j.hallazgos){ box.innerHTML='<h2>Análisis IA <span class="pill">setup / pilotaje</span></h2>'+(j.resumen?`<p style="margin:4px 0 12px;line-height:1.5">${esc(j.resumen)}</p>`:"")+j.hallazgos.map(h=>`<div class="finding" style="border-left-color:${h.tipo==="setup"?"#8B5CF6":"#27D3B6"}"><div class="t">${esc((h.area||"").toUpperCase())} · ${esc(h.tipo||"")} <span class="pill">${esc(h.prioridad||"")}</span></div><div class="d">${esc(h.detalle||"")}${h.evidencia?(" — "+esc(h.evidencia)):""}</div></div>`).join(""); }
+    else { box.innerHTML='<h2>Análisis IA</h2><div class="mono" style="white-space:pre-wrap">'+esc(txt||"Sin respuesta de la IA.")+'</div>'; }
+  }catch(e){ box.innerHTML='<h2>Análisis IA</h2><div class="mono" style="color:#FF6B6B">No se pudo analizar: '+esc(e.message)+'. En modo demo la IA puede no estar disponible; con el backend conectado funciona.</div>'; }
+}
+function drawTele(){
+  if(!CSVA||!CSVA.data){$("teleOut").innerHTML='<div class="empty">Carga al menos un CSV.</div>';return;}
+  const align=$("alignSel").value;
+  const SA=buildSeries(CSVA.data,$("lapA").value,align);
+  const SB=(CSVB&&CSVB.data)?buildSeries(CSVB.data,$("lapB").value,align):null;
+  const chans=valChans(CSVA.data).filter(h=>CHAN_ON[h]);
+  if(!chans.length){$("teleOut").innerHTML='<div class="empty">Activa al menos un canal.</div>';return;}
+  const crit=criticalPoints(CSVA.data,SA,SB&&CSVB.data,SB,align);
+  const SEC=sectorsFor(CSVA.data,SA,SB&&CSVB.data,SB,align);
+  let html=`<div class="panel"><h2>Puntos críticos <span class="pill">vuelta A · alineado por ${axisLabel(align)}</span></h2>${crit.length?crit.map(c=>`<div class="finding" style="border-left-color:${c.col}"><div class="t">${esc(c.t)}</div><div class="d">${esc(c.d)}</div></div>`).join(""):'<div class="mono" style="color:var(--faint)">Sin marcas (faltan canales reconocibles).</div>'}</div>`;
+  html+=renderSectors(SEC.segA,SEC.segB,align);
+  chans.forEach((h,i)=>html+=`<div class="panel"><h2>${esc(h)} <span class="pill">${RLBL[chanRole(h)]}</span></h2><div class="chartbox"><canvas id="tc${i}"></canvas></div></div>`);
+  $("teleOut").innerHTML=html;
+  const MAX=900;
+  chans.forEach((h,i)=>{
+    const col=RCOL[chanRole(h)];
+    const ds=[{label:CSVA.name+($("lapA").value!=="__all__"?(" v"+$("lapA").value):""),data:ptsIdx(SA.X,CSVA.data.cols[h],SA.idx,MAX),borderColor:col,backgroundColor:col,pointRadius:0,borderWidth:1.5}];
+    if(SB){const hb=CSVB.data.headers.find(z=>z.toLowerCase()===h.toLowerCase())||CSVB.data.headers.find(z=>chanRole(z)===chanRole(h)&&chanRole(z)!=="otros");if(hb)ds.push({label:CSVB.name+($("lapB").value!=="__all__"?(" v"+$("lapB").value):""),data:ptsIdx(SB.X,CSVB.data.cols[hb],SB.idx,MAX),borderColor:"#E8ECF3",backgroundColor:"#E8ECF3",pointRadius:0,borderWidth:1,borderDash:[4,3]});}
+    const mk=crit.find(c=>c.ch===h);
+    if(mk)ds.push({label:"●",data:[{x:mk.x,y:mk.y}],borderColor:"#FF5A1F",backgroundColor:"#FF5A1F",pointRadius:5,showLine:false});
+    makeChart("tc"+i,{type:"line",data:{datasets:ds},options:{responsive:true,maintainAspectRatio:false,parsing:false,animation:false,scales:{x:{type:"linear",title:{display:true,text:axisLabel(align)}}},plugins:{legend:{display:!!(SB||mk),position:"bottom",labels:{filter:it=>it.text!=="●"}}}}});
+  });
+}
+
+/* ===== Login / token (producción backend) ================================= */
+let TOKEN=null;
+function _auth(){ return TOKEN?{"Authorization":"Bearer "+TOKEN}:{}; }
+function tokGet(){ try{return localStorage.getItem("ad11_token");}catch(e){return null;} }
+function tokSet(t){ TOKEN=t||null; try{ if(t)localStorage.setItem("ad11_token",t); else localStorage.removeItem("ad11_token"); }catch(e){} }
+async function doLogin(){
+  const u=$("loginUser").value.trim(), p=$("loginPass").value; $("loginErr").textContent="";
+  try{
+    let j;
+    if(_GAS()){ j=await gasCall("login",{user:u,pass:p}); }
+    else { const r=await fetch(CONFIG.backendURL+"/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:u,pass:p})}); if(!r.ok){ $("loginErr").textContent="Usuario o clave incorrectos."; return; } j=await r.json(); }
+    if(!j||!j.token){ $("loginErr").textContent=(j&&j.error)?("Error: "+j.error):"Usuario o clave incorrectos."; return; }
+    tokSet(j.token);
+    if(j.role){ ROLE=j.role; const rs=$("roleSel"); if(rs)rs.value=ROLE; try{await sSet("ui:role",ROLE);}catch(e){} }
+    applyRole(); $("loginOverlay").style.display="none"; $("logoutBtn").style.display="";
+    await loadSessions(); await loadEng(); renderPanel();
+  }catch(e){ $("loginErr").textContent="No se pudo conectar con el servidor. Revisa la URL del Apps Script."; }
+}
+function logout(){ tokSet(null); $("logoutBtn").style.display="none"; if(CONFIG.mode==="backend"||CONFIG.mode==="gas") $("loginOverlay").style.display="flex"; }
+function maybeLogin(){
+  if(CONFIG.mode!=="backend"&&CONFIG.mode!=="gas")return;
+  TOKEN=tokGet();
+  const lb=$("loginBtn");
+  if(lb&&!lb._b){ lb._b=1; lb.onclick=doLogin; $("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();}); $("logoutBtn").onclick=logout; }
+  if(TOKEN){ $("logoutBtn").style.display=""; } else { $("loginOverlay").style.display="flex"; }
+}
+(async()=>{maybeLogin();try{const lg=await sGet("ui:logo");if(lg)document.querySelector(".brand img").src=lg;}catch(e){}await loadSessions();await loadEng();await loadRole();applyRole();wireBackup();renderPanel();})();
+</script>
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,12,20,.86);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--line2,#27314a);border-radius:14px;padding:24px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <h2 style="margin:0 0 2px">Iniciar sesión</h2>
+    <div class="mono" style="color:var(--faint);font-size:12px;margin-bottom:16px">AD11 Racing · acceso del equipo</div>
+    <label style="font-size:12px;color:var(--faint)">Usuario</label>
+    <input id="loginUser" class="inp" autocomplete="username">
+    <label style="font-size:12px;color:var(--faint)">Clave</label>
+    <input id="loginPass" type="password" class="inp" autocomplete="current-password">
+    <div id="loginErr" style="color:#FF6B6B;font-size:12px;min-height:16px;margin:2px 0 8px"></div>
+    <button class="btn pri" id="loginBtn" style="width:100%">Entrar</button>
+  </div>
+</div>
+</body>
+</html>
