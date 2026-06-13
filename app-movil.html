@@ -216,6 +216,10 @@ input.sm{padding:9px 10px;font-size:13px}
           <select id="model"></select>
         </div>
         <div class="field">
+          <label>Moto (base)</label>
+          <select id="motoBase"></select>
+        </div>
+        <div class="field">
           <label>Marca de la moto</label>
           <select id="marca"></select>
         </div>
@@ -233,7 +237,10 @@ input.sm{padding:9px 10px;font-size:13px}
         </div>
         <div class="field">
           <label>Piloto</label>
-          <input type="text" id="piloto" value="Antonio">
+          <div style="display:flex;gap:8px">
+            <select id="piloto" style="flex:1"></select>
+            <button type="button" id="pilAdd" style="white-space:nowrap;padding:0 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(139,92,246,.18);color:#fff;font-size:13px;cursor:pointer">+ Nuevo</button>
+          </div>
         </div>
         <div class="field">
           <label>Circuito</label>
@@ -857,6 +864,30 @@ const AD11={
     return s; }
 };
 
+/* ===== Bases compartidas: Pilotos y Motos (misma base central que el escritorio) ===== */
+let PILOTOS=[], MOTOS=[], MOV_SESS=[];
+function pilIdOf(nombre){ return "pil_"+AD11.slug(nombre); }
+function motIdOf(marca,modelo){ return "mot_"+AD11.slug((marca||"")+"-"+(modelo||"")); }
+function motoLabelRec(r){ return ((r.marca||"")+" "+(r.modelo||"")).trim(); }
+async function _dumpRecs(prefix){
+  let recs=[];
+  if(_GAS()){ try{ const j=await gasCall("kv_dump",{prefix:prefix}); recs=(j.items||[]).map(it=>{try{const v=it[1];const o=(typeof v==="string")?JSON.parse(v):v;o.__key=it[0];return o;}catch(e){return null;}}).filter(Boolean); }catch(e){} }
+  else { const keys=await sList(prefix); for(const k of keys){ const raw=await sGet(k); if(!raw)continue; try{const o=JSON.parse(raw);o.__key=k;recs.push(o);}catch(e){} } }
+  return recs;
+}
+async function loadPilotos(){ const r=await _dumpRecs("piloto:"); PILOTOS=r.filter(x=>!x.deleted); return PILOTOS; }
+async function loadMotos(){ const r=await _dumpRecs("moto:"); MOTOS=r.filter(x=>!x.deleted); return MOTOS; }
+async function savePilotoRec(rec){ const now=new Date().toISOString(); rec.schemaVersion=rec.schemaVersion||1; if(!rec.createdAt)rec.createdAt=now; rec.updatedAt=now; if(!rec.origen)rec.origen="movil"; await sSet("piloto:"+rec.pilotoId, JSON.stringify(rec)); }
+async function saveMotoRec(rec){ const now=new Date().toISOString(); rec.schemaVersion=rec.schemaVersion||1; if(!rec.createdAt)rec.createdAt=now; rec.updatedAt=now; if(!rec.origen)rec.origen="movil"; await sSet("moto:"+rec.motoId, JSON.stringify(rec)); }
+function selSet(id,val){ const sel=$(id); if(!sel)return; if(sel.tagName!=="SELECT"){ sel.value=val||""; return; } if(val&&![...sel.options].some(o=>o.value===val)) sel.add(new Option(val,val)); sel.value=val||""; }
+function pilotoNombres(){ const seen=new Set(),out=[]; PILOTOS.forEach(x=>{if(x.nombre&&!seen.has(x.nombre)){seen.add(x.nombre);out.push(x.nombre);}}); (MOV_SESS||[]).forEach(x=>{if(x.piloto&&x.piloto!=="Piloto"&&!seen.has(x.piloto)){seen.add(x.piloto);out.push(x.piloto);}}); return out.sort((a,b)=>a.localeCompare(b)); }
+function motoNombres(){ const seen=new Set(),out=[]; MOTOS.forEach(m=>{const l=motoLabelRec(m);if(l&&!seen.has(l)){seen.add(l);out.push(l);}}); (MOV_SESS||[]).forEach(x=>{const l=((x.marca||"")+" "+(x.moto||"")).trim();if(l&&!seen.has(l)){seen.add(l);out.push(l);}}); return out.sort((a,b)=>a.localeCompare(b)); }
+function fillPilotoSelect(){ const sel=$("piloto"); if(!sel)return; const cur=sel.value; const names=pilotoNombres(); sel.innerHTML='<option value="">— elige piloto —</option>'+names.map(n=>`<option>${esc(n)}</option>`).join(""); if(cur&&names.includes(cur))sel.value=cur; else if(names.length)sel.value=names[0]; }
+function fillMotoBase(){ const sel=$("motoBase"); if(!sel)return; const names=motoNombres(); sel.innerHTML='<option value="">— nueva / manual —</option>'+names.map(n=>`<option>${esc(n)}</option>`).join(""); }
+function applyMotoBase(){ const l=$("motoBase").value; if(!l)return; const rec=MOTOS.find(m=>motoLabelRec(m)===l); if(rec){ selSet("marca",rec.marca); $("moto").value=rec.modelo||""; if(rec.anio)$("anio").value=rec.anio; } else { const parts=l.split(" "); selSet("marca",parts[0]||""); $("moto").value=parts.slice(1).join(" "); } }
+async function addPilotoPrompt(){ const n=(prompt("Nombre del nuevo piloto:")||"").trim(); if(!n)return; if(_GAS()){ const pid=pilIdOf(n); try{ const ex=await sGet("piloto:"+pid); if(!ex) await savePilotoRec({pilotoId:pid,nombre:n,deleted:false,origen:"movil"}); }catch(e){} await loadPilotos(); } fillPilotoSelect(); selSet("piloto",n); }
+(function wireBasesMovil(){ const pa=$("pilAdd"); if(pa)pa.onclick=addPilotoPrompt; const mb=$("motoBase"); if(mb)mb.onchange=applyMotoBase; })();
+
 /* ---------- Estado de la sesión ---------- */
 function getState(){
   const v=id=>$(id).value;
@@ -882,8 +913,8 @@ function getState(){
 function loadState(st,key){
   currentKey=key||null;
   if(st.sistema){sysSel.value=st.sistema;} fillModels(); if(st.modelo)modelSel.value=st.modelo;
-  if(st.marca)$("marca").value=st.marca; if(st.categoria)$("cat").value=st.categoria;
-  $("piloto").value=st.piloto||""; $("moto").value=st.moto||""; $("anio").value=st.anio||"";
+  if(st.marca)selSet("marca",st.marca); if(st.categoria)$("cat").value=st.categoria;
+  selSet("piloto",st.piloto||""); $("moto").value=st.moto||""; $("anio").value=st.anio||"";
   const has=[...circSel.options].some(o=>o.value===st.circuito);
   if(has){circSel.value=st.circuito;updateCircuit();}else if(st.circuito){addCustomCircuit(st.circuito);}else{circSel.value="";updateCircuit();}
   $("vuelta").value=st.vuelta||"";
@@ -915,6 +946,11 @@ async function persistSession(opts){
   if(!currentKey) currentKey="sesion:"+Date.now();
   if(!st.equipo) st.equipo=st.team||"AD11 Racing";
   st.__key=currentKey; AD11.normalize(st);
+  // Registrar/actualizar piloto y moto en la base central (crece sola)
+  try{ if(_GAS()){
+    if(st.piloto && st.piloto!=="Piloto" && st.piloto!==""){ const pid=pilIdOf(st.piloto); const ex=await sGet("piloto:"+pid); if(!ex) await savePilotoRec({pilotoId:pid,nombre:st.piloto,deleted:false,origen:"movil"}); }
+    if(st.marca && st.moto){ const mid=motIdOf(st.marca,st.moto); const ex=await sGet("moto:"+mid); if(!ex) await saveMotoRec({motoId:mid,marca:st.marca,modelo:st.moto,anio:st.anio||"",deleted:false,origen:"movil"}); }
+  } }catch(e){}
   // Conservar SIEMPRE el CSV original en Drive (no se borra nunca)
   if(_GAS() && csvText && csvText.length && st.csvName && !(st.csvOriginal||[]).some(r=>r.name===st.csvName)){
     try{ const j=await gasCall("csv_save",{name:(st.sessionId+"__"+st.csvName),content:csvText}); if(j&&!j.error){ st.csvOriginal=st.csvOriginal||[]; st.csvOriginal.push({name:st.csvName,fileId:j.fileId,url:j.url,bytes:j.bytes,savedAt:new Date().toISOString()}); } }catch(e){}
@@ -930,6 +966,7 @@ async function renderArchive(){
   const items=[];
   for(const k of keys){ const raw=await sGet(k); if(!raw)continue; try{const o=JSON.parse(raw);o.__key=k;AD11.normalize(o);items.push(o);}catch(e){} }
   items.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||""));
+  MOV_SESS=items;
   const fil=$("archFilter"), cur=fil.value;
   const circs=[...new Set(items.map(i=>i.circuito).filter(Boolean))];
   fil.innerHTML='<option value="">Todos los circuitos</option>'+circs.map(c=>`<option>${esc(c)}</option>`).join("");
@@ -1053,6 +1090,7 @@ async function loadUI(){
   try{ const st=await sGet("ui:logo"); if(st)lg=st; const tn=await sGet("ui:team"); if(tn)$("teamName").value=tn; const cc=await sGet("ui:customCircuits"); if(cc){ customCircuits=JSON.parse(cc)||[]; rebuildCustom(); } }catch(e){}
   if(lg){$("logoImg").src=lg;$("logoImg").style.display="block";$("logoPh").style.display="none";}
   await renderArchive();
+  await loadPilotos(); await loadMotos(); fillPilotoSelect(); fillMotoBase();
 }
 async function __initApp(){ maybeLogin(); if(!_GAS()||TOKEN){ await loadUI(); } }
 if(document.readyState!=="loading"){ __initApp(); } else { document.addEventListener("DOMContentLoaded", __initApp); }

@@ -106,13 +106,21 @@ select:focus,input:focus{border-color:var(--brand)}
 
     <section id="pilotos" class="hidden">
       <div class="top"><h1>Pilotos</h1><span class="crumb">Historial por piloto</span></div>
-      <div class="toolbar"><label>Piloto</label><select id="pilSel"></select></div>
+      <div class="toolbar"><label>Piloto</label><select id="pilSel"></select>
+        <button class="btn" id="pilNew">+ Nuevo</button>
+        <button class="btn" id="pilEdit">✎ Editar</button>
+        <button class="btn" id="pilDel" data-perm="delete">🗑 Archivar</button></div>
+      <div id="pilForm" class="panel hidden" style="margin-bottom:14px"></div>
       <div id="pilOut"></div>
     </section>
 
     <section id="motos" class="hidden">
       <div class="top"><h1>Motos</h1><span class="crumb">Historial por moto</span></div>
-      <div class="toolbar"><label>Moto</label><select id="motoSel"></select></div>
+      <div class="toolbar"><label>Moto</label><select id="motoSel"></select>
+        <button class="btn" id="motoNew">+ Nueva</button>
+        <button class="btn" id="motoEdit">✎ Editar</button>
+        <button class="btn" id="motoDel" data-perm="delete">🗑 Archivar</button></div>
+      <div id="motoForm" class="panel hidden" style="margin-bottom:14px"></div>
       <div id="motoOut"></div>
     </section>
 
@@ -246,7 +254,7 @@ async function saveCsvOriginal(){
 }
 async function refreshData(){
   const btn=$("refreshBtn"); const t=btn?btn.textContent:""; if(btn){btn.disabled=true;btn.textContent="Actualizando…";}
-  try{ await loadSessions(); await loadEng(); }catch(e){}
+  try{ await loadSessions(); await loadPilotos(); await loadMotos(); await loadEng(); }catch(e){}
   const active=document.querySelector('.nav button.on'); const v=active?active.dataset.v:'panel';
   (({panel:renderPanel,pilotos:fillPilotos,motos:fillMotos,cmp:fillCompare,tele:renderTeleView,hist:renderHist})[v]||renderPanel)();
   if(btn){btn.disabled=false;btn.textContent=t||"↻ Actualizar";}
@@ -291,7 +299,99 @@ function renderPanel(){
 }
 
 /* ===== Pilotos ============================================================= */
-function fillPilotos(){const pil=[...new Set(SESSIONS.map(s=>s.piloto).filter(Boolean))];$("pilSel").innerHTML='<option value="">— elige —</option>'+pil.map(p=>`<option>${esc(p)}</option>`).join("");if(pil[0]){$("pilSel").value=pil[0];renderPiloto(pil[0]);}else $("pilOut").innerHTML=empty();}
+/* ===== Bases compartidas: Pilotos y Motos (registros propios, base central) ===== */
+let PILOTOS=[], MOTOS=[];
+const _IST='width:100%;padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:#0B0E13;color:#fff;box-sizing:border-box;margin:3px 0 8px;font-family:inherit';
+const _LST='font-size:12px;color:var(--muted)';
+function pilIdOf(nombre){ return "pil_"+AD11.slug(nombre); }
+function motIdOf(marca,modelo){ return "mot_"+AD11.slug((marca||"")+"-"+(modelo||"")); }
+function motoLabelRec(r){ return ((r.marca||"")+" "+(r.modelo||"")).trim(); }
+async function _dumpRecs(prefix){
+  let recs=[];
+  if(_GAS()){ try{ const j=await gasCall("kv_dump",{prefix:prefix}); recs=(j.items||[]).map(it=>{try{const v=it[1];const o=(typeof v==="string")?JSON.parse(v):v;o.__key=it[0];return o;}catch(e){return null;}}).filter(Boolean); }catch(e){} }
+  else { const keys=await sList(prefix); for(const k of keys){ const raw=await sGet(k); if(!raw)continue; try{const o=JSON.parse(raw);o.__key=k;recs.push(o);}catch(e){} } }
+  return recs;
+}
+async function loadPilotos(){ const r=await _dumpRecs("piloto:"); PILOTOS=r.filter(x=>!x.deleted).sort((a,b)=>(a.nombre||"").localeCompare(b.nombre||"")); return PILOTOS; }
+async function loadMotos(){ const r=await _dumpRecs("moto:"); MOTOS=r.filter(x=>!x.deleted).sort((a,b)=>motoLabelRec(a).localeCompare(motoLabelRec(b))); return MOTOS; }
+async function savePilotoRec(rec){ const now=new Date().toISOString(); rec.schemaVersion=rec.schemaVersion||1; if(!rec.createdAt)rec.createdAt=now; rec.updatedAt=now; if(!rec.origen)rec.origen="escritorio"; await sSet("piloto:"+rec.pilotoId, JSON.stringify(rec)); }
+async function saveMotoRec(rec){ const now=new Date().toISOString(); rec.schemaVersion=rec.schemaVersion||1; if(!rec.createdAt)rec.createdAt=now; rec.updatedAt=now; if(!rec.origen)rec.origen="escritorio"; await sSet("moto:"+rec.motoId, JSON.stringify(rec)); }
+function pilotoNombres(){ const seen=new Set(), out=[]; PILOTOS.forEach(x=>{if(x.nombre&&!seen.has(x.nombre)){seen.add(x.nombre);out.push(x.nombre);}}); SESSIONS.forEach(x=>{if(x.piloto&&!seen.has(x.piloto)){seen.add(x.piloto);out.push(x.piloto);}}); return out.sort((a,b)=>a.localeCompare(b)); }
+function motoNombres(){ const seen=new Set(), out=[]; MOTOS.forEach(m=>{const l=motoLabelRec(m); if(l&&!seen.has(l)){seen.add(l);out.push(l);}}); SESSIONS.forEach(x=>{const l=motoName(x); if(l&&l!=="—"&&!seen.has(l)){seen.add(l);out.push(l);}}); return out.sort((a,b)=>a.localeCompare(b)); }
+function pilByNombre(n){ return PILOTOS.find(x=>x.nombre===n); }
+function motoByLabel(l){ return MOTOS.find(m=>motoLabelRec(m)===l); }
+
+/* ---- CRUD Pilotos ---- */
+function pilFormOpen(rec){
+  const r=rec||{}; const box=$("pilForm"); box.classList.remove("hidden");
+  box.innerHTML=`<h2>${rec&&rec.nombre?"Editar piloto":"Nuevo piloto"}</h2>
+    <div class="cols2">
+      <div><label style="${_LST}">Nombre*</label><input id="pf_nombre" style="${_IST}" value="${esc(r.nombre||"")}" ${(rec&&rec.nombre)?"disabled":""}></div>
+      <div><label style="${_LST}">Número</label><input id="pf_num" style="${_IST}" value="${esc(r.numero||"")}"></div>
+      <div><label style="${_LST}">Nacionalidad</label><input id="pf_nac" style="${_IST}" value="${esc(r.nacionalidad||"")}"></div>
+      <div><label style="${_LST}">Categoría</label><input id="pf_cat" style="${_IST}" value="${esc(r.categoria||"")}"></div>
+    </div>
+    <label style="${_LST}">Notas</label><textarea id="pf_notas" style="${_IST};min-height:60px">${esc(r.notas||"")}</textarea>
+    <div style="margin-top:6px"><button class="btn" id="pf_save">Guardar</button> <button class="btn" id="pf_cancel">Cancelar</button></div>`;
+  $("pf_save").onclick=()=>pilFormSave(rec);
+  $("pf_cancel").onclick=()=>{box.classList.add("hidden");box.innerHTML="";};
+}
+async function pilFormSave(orig){
+  const nombre=($("pf_nombre").value||"").trim(); if(!nombre){alert("El nombre es obligatorio.");return;}
+  const rec=Object.assign({}, orig||{}, { nombre:nombre, numero:$("pf_num").value.trim(), nacionalidad:$("pf_nac").value.trim(), categoria:$("pf_cat").value.trim(), notas:$("pf_notas").value.trim(), deleted:false });
+  if(!rec.pilotoId) rec.pilotoId=pilIdOf(nombre);
+  await savePilotoRec(rec); await loadPilotos(); $("pilForm").classList.add("hidden"); $("pilForm").innerHTML="";
+  fillPilotos(); $("pilSel").value=nombre; renderPiloto(nombre);
+}
+async function pilArchivar(){
+  const n=$("pilSel").value; if(!n)return; if(!can("delete")){alert("Tu rol ("+ROLE+") no puede archivar.");return;}
+  const rec=pilByNombre(n); if(!rec){alert("Ese piloto viene de sesiones antiguas y todavía no es un registro. Pulsa Editar para crearlo y luego podrás archivarlo.");return;}
+  if(!confirm("¿Archivar a "+n+"?\nSe ocultará de las listas en todos los dispositivos, pero NO se borra (recuperable).")) return;
+  rec.deleted=true; rec.deletedAt=new Date().toISOString(); await savePilotoRec(rec); await loadPilotos(); fillPilotos();
+}
+
+/* ---- CRUD Motos ---- */
+function motoFormOpen(rec){
+  const r=rec||{}; const box=$("motoForm"); box.classList.remove("hidden");
+  box.innerHTML=`<h2>${rec&&(rec.marca||rec.modelo)?"Editar moto":"Nueva moto"}</h2>
+    <div class="cols2">
+      <div><label style="${_LST}">Marca*</label><input id="mf_marca" style="${_IST}" value="${esc(r.marca||"")}" ${(rec&&(rec.marca||rec.modelo))?"disabled":""}></div>
+      <div><label style="${_LST}">Modelo*</label><input id="mf_modelo" style="${_IST}" value="${esc(r.modelo||"")}" ${(rec&&(rec.marca||rec.modelo))?"disabled":""}></div>
+      <div><label style="${_LST}">Año</label><input id="mf_anio" style="${_IST}" value="${esc(r.anio||"")}"></div>
+      <div><label style="${_LST}">Categoría</label><input id="mf_cat" style="${_IST}" value="${esc(r.categoria||"")}"></div>
+    </div>
+    <label style="${_LST}">Notas</label><textarea id="mf_notas" style="${_IST};min-height:60px">${esc(r.notas||"")}</textarea>
+    <div style="margin-top:6px"><button class="btn" id="mf_save">Guardar</button> <button class="btn" id="mf_cancel">Cancelar</button></div>`;
+  $("mf_save").onclick=()=>motoFormSave(rec);
+  $("mf_cancel").onclick=()=>{box.classList.add("hidden");box.innerHTML="";};
+}
+async function motoFormSave(orig){
+  const marca=($("mf_marca").value||"").trim(), modelo=($("mf_modelo").value||"").trim();
+  if(!marca||!modelo){alert("Marca y modelo son obligatorios.");return;}
+  const rec=Object.assign({}, orig||{}, { marca:marca, modelo:modelo, anio:$("mf_anio").value.trim(), categoria:$("mf_cat").value.trim(), notas:$("mf_notas").value.trim(), deleted:false });
+  if(!rec.motoId) rec.motoId=motIdOf(marca,modelo);
+  await saveMotoRec(rec); await loadMotos(); $("motoForm").classList.add("hidden"); $("motoForm").innerHTML="";
+  const lbl=(marca+" "+modelo).trim(); fillMotos(); $("motoSel").value=lbl; renderMoto(lbl);
+}
+async function motoArchivar(){
+  const l=$("motoSel").value; if(!l)return; if(!can("delete")){alert("Tu rol ("+ROLE+") no puede archivar.");return;}
+  const rec=motoByLabel(l); if(!rec){alert("Esa moto viene de sesiones antiguas y todavía no es un registro. Pulsa Editar para crearla y luego podrás archivarla.");return;}
+  if(!confirm("¿Archivar "+l+"?\nSe ocultará de las listas en todos los dispositivos, pero NO se borra (recuperable).")) return;
+  rec.deleted=true; rec.deletedAt=new Date().toISOString(); await saveMotoRec(rec); await loadMotos(); fillMotos();
+}
+
+/* ---- Cableado de botones de las bases ---- */
+(function wireBases(){
+  const w=(id,fn)=>{const e=$(id); if(e)e.onclick=fn;};
+  w("pilNew",()=>{ if(!can("seed")){alert("Tu rol ("+ROLE+") no puede crear pilotos.");return;} pilFormOpen(null); });
+  w("pilEdit",()=>{ const n=$("pilSel").value; if(!n)return; if(!can("seed")){alert("Tu rol no puede editar.");return;} pilFormOpen(pilByNombre(n)||{nombre:n}); });
+  w("pilDel",pilArchivar);
+  w("motoNew",()=>{ if(!can("seed")){alert("Tu rol ("+ROLE+") no puede crear motos.");return;} motoFormOpen(null); });
+  w("motoEdit",()=>{ const l=$("motoSel").value; if(!l)return; if(!can("seed")){alert("Tu rol no puede editar.");return;} const r=motoByLabel(l); motoFormOpen(r||{marca:(l.split(" ")[0]||""),modelo:l.split(" ").slice(1).join(" ")}); });
+  w("motoDel",motoArchivar);
+})();
+
+function fillPilotos(){const names=pilotoNombres();const cur=$("pilSel").value;$("pilSel").innerHTML='<option value="">— elige —</option>'+names.map(p=>`<option>${esc(p)}</option>`).join("");const pick=(cur&&names.includes(cur))?cur:names[0];if(pick){$("pilSel").value=pick;renderPiloto(pick);}else{$("pilOut").innerHTML=empty();}}
 $("pilSel").onchange=()=>renderPiloto($("pilSel").value);
 function renderPiloto(p){if(!p){$("pilOut").innerHTML="";return;}const list=SESSIONS.filter(s=>s.piloto===p);const laps=list.map(s=>lapSec(s.mejorVuelta)).filter(x=>x!=null);const best=laps.length?Math.min(...laps):null;const bestS=list.find(s=>lapSec(s.mejorVuelta)===best);
   let h=`<div class="stats"><div class="stat"><div class="k">Sesiones</div><div class="v">${list.length}</div></div><div class="stat"><div class="k">Mejor vuelta</div><div class="v">${best!=null?best.toFixed(3):"—"}</div><div class="s">${esc(bestS?bestS.circuito:"")}</div></div><div class="stat"><div class="k">Circuitos</div><div class="v">${new Set(list.map(s=>s.circuito).filter(Boolean)).size}</div></div><div class="stat"><div class="k">Motos</div><div class="v">${new Set(list.map(motoName)).size}</div></div></div>`;
@@ -303,7 +403,7 @@ function renderPiloto(p){if(!p){$("pilOut").innerHTML="";return;}const list=SESS
 }
 
 /* ===== Motos =============================================================== */
-function fillMotos(){const m=[...new Set(SESSIONS.map(motoName).filter(x=>x!=="—"))];$("motoSel").innerHTML='<option value="">— elige —</option>'+m.map(x=>`<option>${esc(x)}</option>`).join("");if(m[0]){$("motoSel").value=m[0];renderMoto(m[0]);}else $("motoOut").innerHTML=empty();}
+function fillMotos(){const names=motoNombres();const cur=$("motoSel").value;$("motoSel").innerHTML='<option value="">— elige —</option>'+names.map(x=>`<option>${esc(x)}</option>`).join("");const pick=(cur&&names.includes(cur))?cur:names[0];if(pick){$("motoSel").value=pick;renderMoto(pick);}else{$("motoOut").innerHTML=empty();}}
 $("motoSel").onchange=()=>renderMoto($("motoSel").value);
 function renderMoto(m){if(!m){$("motoOut").innerHTML="";return;}const list=SESSIONS.filter(s=>motoName(s)===m);const laps=list.map(s=>lapSec(s.mejorVuelta)).filter(x=>x!=null);const best=laps.length?Math.min(...laps):null;
   let h=`<div class="stats"><div class="stat"><div class="k">Sesiones</div><div class="v">${list.length}</div></div><div class="stat"><div class="k">Mejor vuelta</div><div class="v">${best!=null?best.toFixed(3):"—"}</div></div><div class="stat"><div class="k">Pilotos</div><div class="v">${new Set(list.map(s=>s.piloto).filter(Boolean)).size}</div></div><div class="stat"><div class="k">Circuitos</div><div class="v">${new Set(list.map(s=>s.circuito).filter(Boolean)).size}</div></div></div>`;
@@ -371,7 +471,7 @@ let ROLE="admin";
 const PERMS={ delete:["admin","ingeniero"], edit:["admin","ingeniero"], seed:["admin","ingeniero","mecánico"] };
 function can(a){ return (PERMS[a]||[]).includes(ROLE); }
 async function loadRole(){ ROLE=(await sGet("ui:role"))||"admin"; const r=$("roleSel"); if(r)r.value=ROLE; }
-function applyRole(){ const s=$("seed"),im=$("impBtn"); if(s)s.style.display=can("seed")?"":"none"; if(im)im.style.display=can("seed")?"":"none"; const rb=$("restoreBtn"); if(rb)rb.style.display=can("delete")?"":"none"; }
+function applyRole(){ const s=$("seed"),im=$("impBtn"); if(s)s.style.display=can("seed")?"":"none"; if(im)im.style.display=can("seed")?"":"none"; const rb=$("restoreBtn"); if(rb)rb.style.display=can("delete")?"":"none"; ["pilNew","pilEdit","motoNew","motoEdit"].forEach(id=>{const e=$(id);if(e)e.style.display=can("seed")?"":"none";}); ["pilDel","motoDel"].forEach(id=>{const e=$(id);if(e)e.style.display=can("delete")?"":"none";}); }
 document.addEventListener("change",e=>{ if(e.target&&e.target.id==="roleSel"){ ROLE=e.target.value; sSet("ui:role",ROLE); applyRole(); } });
 
 /* ===== Comparación por modo (sesión / piloto / moto) ======================= */
@@ -606,7 +706,7 @@ function maybeLogin(){
   if(lb&&!lb._b){ lb._b=1; lb.onclick=doLogin; if(lp)lp.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();}); if(lg)lg.onclick=logout; }
   if(TOKEN){ if(lg)lg.style.display=""; } else if(lo){ lo.style.display="flex"; }
 }
-async function __initApp(){ maybeLogin(); try{const lg=await sGet("ui:logo");if(lg)document.querySelector(".brand img").src=lg;}catch(e){} await loadSessions(); await loadEng(); await loadRole(); applyRole(); wireBackup(); renderPanel(); }
+async function __initApp(){ maybeLogin(); try{const lg=await sGet("ui:logo");if(lg)document.querySelector(".brand img").src=lg;}catch(e){} await loadSessions(); await loadPilotos(); await loadMotos(); await loadEng(); await loadRole(); applyRole(); wireBackup(); renderPanel(); }
 if(document.readyState!=="loading"){ __initApp(); } else { document.addEventListener("DOMContentLoaded", __initApp); }
 </script>
 <div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,12,20,.86);z-index:9999;align-items:center;justify-content:center;padding:20px">
