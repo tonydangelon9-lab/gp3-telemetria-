@@ -594,11 +594,12 @@ function logout(){ tokSet(null); $("logoutBtn").style.display="none"; if(CONFIG.
 function maybeLogin(){
   if(CONFIG.mode!=="backend"&&CONFIG.mode!=="gas")return;
   TOKEN=tokGet();
-  const lb=$("loginBtn");
-  if(lb&&!lb._b){ lb._b=1; lb.onclick=doLogin; $("loginPass").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();}); $("logoutBtn").onclick=logout; }
-  if(TOKEN){ $("logoutBtn").style.display=""; } else { $("loginOverlay").style.display="flex"; }
+  const lb=$("loginBtn"), lp=$("loginPass"), lg=$("logoutBtn"), lo=$("loginOverlay");
+  if(lb&&!lb._b){ lb._b=1; lb.onclick=doLogin; if(lp)lp.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();}); if(lg)lg.onclick=logout; }
+  if(TOKEN){ if(lg)lg.style.display=""; } else if(lo){ lo.style.display="flex"; }
 }
-(async()=>{maybeLogin();try{const lg=await sGet("ui:logo");if(lg)document.querySelector(".brand img").src=lg;}catch(e){}await loadSessions();await loadEng();await loadRole();applyRole();wireBackup();renderPanel();})();
+async function __initApp(){ maybeLogin(); try{const lg=await sGet("ui:logo");if(lg)document.querySelector(".brand img").src=lg;}catch(e){} await loadSessions(); await loadEng(); await loadRole(); applyRole(); wireBackup(); renderPanel(); }
+if(document.readyState!=="loading"){ __initApp(); } else { document.addEventListener("DOMContentLoaded", __initApp); }
 </script>
 <div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(10,12,20,.86);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--surface);border:1px solid var(--line2,#27314a);border-radius:14px;padding:24px;width:340px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.5)">
