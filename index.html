@@ -85,6 +85,7 @@ select:focus,input:focus{border-color:var(--brand)}
       <label style="margin-top:10px">Rol</label>
       <select id="roleSel"><option>admin</option><option>ingeniero</option><option>mecánico</option><option>piloto</option></select>
       <div class="db" id="dbState"></div>
+      <button class="btn" id="refreshBtn" style="margin-top:10px;width:100%">↻ Actualizar</button>
       <button class="btn" id="logoutBtn" style="margin-top:10px;display:none;width:100%">Cerrar sesión</button>
       <button class="btn" id="backupBtn" style="margin-top:8px;width:100%">⬇ Backup de datos</button>
       <button class="btn" id="restoreBtn" data-perm="delete" style="margin-top:6px;width:100%">⬆ Restaurar backup</button>
@@ -243,7 +244,14 @@ async function saveCsvOriginal(){
     $("csvSaveMsg").textContent="Original conservado ✓ ("+(ref.bytes||0)+" bytes)";
   }catch(e){ $("csvSaveMsg").textContent="Error: "+e.message; }
 }
-function wireBackup(){ const b=$("backupBtn"); if(b)b.onclick=exportBackup; const r=$("restoreBtn"); if(r)r.onclick=importBackup; }
+async function refreshData(){
+  const btn=$("refreshBtn"); const t=btn?btn.textContent:""; if(btn){btn.disabled=true;btn.textContent="Actualizando…";}
+  try{ await loadSessions(); await loadEng(); }catch(e){}
+  const active=document.querySelector('.nav button.on'); const v=active?active.dataset.v:'panel';
+  (({panel:renderPanel,pilotos:fillPilotos,motos:fillMotos,cmp:fillCompare,tele:renderTeleView,hist:renderHist})[v]||renderPanel)();
+  if(btn){btn.disabled=false;btn.textContent=t||"↻ Actualizar";}
+}
+function wireBackup(){ const b=$("backupBtn"); if(b)b.onclick=exportBackup; const r=$("restoreBtn"); if(r)r.onclick=importBackup; const rf=$("refreshBtn"); if(rf)rf.onclick=refreshData; }
 async function loadSessions(){ if(_GAS()){ try{ const j=await gasCall("kv_dump",{prefix:"sesion:"}); const out=(j.items||[]).map(it=>{try{const v=it[1];const o=(typeof v==="string")?JSON.parse(v):v;o.__key=it[0];return o;}catch(e){return null;}}).filter(Boolean); out.forEach(o=>AD11.normalize(o));out.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||"")); SESSIONS=out; return out; }catch(e){} } const keys=await sList("sesion:");const out=[];for(const k of keys){const raw=await sGet(k);if(!raw)continue;try{const o=JSON.parse(raw);o.__key=k;out.push(o);}catch(e){}}out.forEach(o=>AD11.normalize(o));out.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||""));SESSIONS=out;return out;}
 
 /* ===== Charts ============================================================== */
