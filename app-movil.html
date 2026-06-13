@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telemetría · En Vivo</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0B0E13;
+  --bg2:#10151D;
+  --surface:#161C26;
+  --surface2:#1C2430;
+  --line:#283142;
+  --line2:#374255;
+  --txt:#E8ECF3;
+  --muted:#AEB7C7;
+  --faint:#828CA1;
+  --ignite:#8B5CF6;   /* señal / acción */
+  --glow:#FFB23D;     /* freno / atención */
+  --data:#27D3B6;     /* dato / OK */
+  --susp:#5B8DEF;     /* suspensión */
+  --elec:#58D973;     /* electrónica */
+  --piloto:#FF7AA8;   /* piloto */
+  --motor:#FF5A1F;    /* motor */
+  --neu:#27D3B6;      /* neumático */
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1100px 500px at 78% -8%, rgba(139,92,246,.10), transparent 60%),
+    radial-gradient(900px 500px at -5% 8%, rgba(91,141,239,.08), transparent 55%),
+    var(--bg);
+  color:var(--txt);
+  font-family:'Inter',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 64px}
+
+/* Header */
+.head{display:flex;align-items:center;gap:12px;padding:6px 0 18px;border-bottom:1px solid var(--line)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ignite);box-shadow:0 0 0 0 rgba(139,92,246,.55);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(139,92,246,.5)}70%{box-shadow:0 0 0 9px rgba(139,92,246,0)}100%{box-shadow:0 0 0 0 rgba(139,92,246,0)}}
+.head h1{font-family:'Space Grotesk',sans-serif;font-size:15px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;margin:0;color:var(--txt)}
+.head .sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);letter-spacing:.1em;margin-left:auto}
+
+/* Section */
+.sec{margin-top:22px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#AEB7C7;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.eyebrow b{color:var(--ignite);font-weight:600}
+.card{background:linear-gradient(180deg,var(--surface),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:16px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:520px){.grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+select,input[type=text],input[type=number],textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--line2);color:var(--txt);
+  border-radius:9px;padding:11px 12px;font-family:'Inter',sans-serif;font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238893A6' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;padding-right:34px}
+select:focus,input:focus,textarea:focus{border-color:var(--ignite);box-shadow:0 0 0 3px rgba(139,92,246,.15)}
+textarea{resize:vertical;min-height:96px;line-height:1.5}
+::placeholder{color:#7E889E;opacity:1}
+.maplink{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--data);text-decoration:none;border:1px solid var(--line2);border-radius:9px;padding:11px 12px;display:inline-flex;align-items:center;gap:6px;transition:.15s;background:var(--surface2)}
+.maplink:hover{border-color:var(--data);background:#15211f}
+.maplink.off{opacity:.4;pointer-events:none}
+
+/* Upload */
+.drop{border:1px dashed var(--line2);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:var(--surface2)}
+.drop:hover{border-color:var(--ignite);background:#1f2733}
+.drop .ic{font-size:22px;line-height:1}
+.drop .t{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;margin-top:8px}
+.drop .h{font-size:12px;color:var(--muted);margin-top:4px}
+.drop.has{border-style:solid;border-color:var(--data);background:#15211f}
+.preview{margin-top:10px;display:none}
+.preview img{max-width:100%;border-radius:10px;border:1px solid var(--line2);display:block}
+.filechip{display:none;margin-top:10px;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--data);background:#15211f;border:1px solid #1f3d38;border-radius:8px;padding:8px 10px}
+
+/* Voice */
+.voicebar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.mic{display:inline-flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--line2);color:var(--txt);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.05em;border-radius:999px;padding:8px 14px;cursor:pointer;transition:.15s}
+.mic:hover{border-color:var(--ignite)}
+.mic.rec{border-color:var(--ignite);color:var(--ignite);background:#1c1640}
+.mic.rec .mdot{animation:pulse 1.2s infinite}
+.mdot{width:8px;height:8px;border-radius:50%;background:var(--ignite)}
+.vhint{font-size:11px;color:var(--faint)}
+
+/* Action */
+.go{width:100%;margin-top:20px;background:linear-gradient(180deg,#A78BFA,var(--ignite));color:#0B0E13;border:none;border-radius:12px;padding:15px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;letter-spacing:.04em;cursor:pointer;transition:.15s;box-shadow:0 6px 22px -8px rgba(139,92,246,.7)}
+.go:hover{filter:brightness(1.06)}
+.go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;filter:none}
+
+/* Results */
+.out{margin-top:26px;display:none}
+.veredicto{background:linear-gradient(180deg,#1a1310,#14100d);border:1px solid #3a2616;border-left:3px solid var(--glow);border-radius:12px;padding:16px;margin-bottom:16px}
+.veredicto .lbl{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--glow);margin-bottom:8px}
+.veredicto p{margin:0;font-size:15px;line-height:1.55}
+.resumen{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 16px}
+
+.finding{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;border-left:3px solid var(--line2)}
+.finding .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.chan{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;font-weight:600}
+.loc{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);margin-left:auto}
+.row{display:flex;gap:8px;font-size:13.5px;line-height:1.5;margin-top:7px}
+.row .k{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);min-width:66px;padding-top:2px;flex-shrink:0}
+.row .v{color:var(--txt)}
+.conf{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);margin-top:9px;letter-spacing:.05em}
+
+.note{font-size:12px;color:var(--faint);line-height:1.6;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(11,14,19,.35);border-top-color:#0B0E13;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{background:#241012;border:1px solid #5a2630;color:#ff9aa6;border-radius:10px;padding:14px;font-size:13.5px;line-height:1.5;margin-top:16px;display:none}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+
+/* Team header */
+.brandbar{display:flex;align-items:center;gap:14px;padding:4px 0 16px;border-bottom:1px solid var(--line)}
+.logoSlot{width:54px;height:54px;border-radius:12px;border:1px solid var(--line2);background:var(--surface2);display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;flex-shrink:0}
+.logoSlot img{width:100%;height:100%;object-fit:contain}
+.logoSlot .ph{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--faint);letter-spacing:.08em;text-align:center;line-height:1.3}
+.brandtxt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.brandtxt .eb{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:#A98BFF}
+.brandtxt .tn{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:var(--txt);line-height:1.05;background:none;border:none;padding:0;outline:none;width:100%}
+.brandtxt .tn:focus{color:var(--ignite)}
+.brandbar .live{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint);letter-spacing:.08em;flex-shrink:0}
+
+.sub3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:520px){.sub3{grid-template-columns:1fr 1fr}}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mini label{font-size:10px}
+input.sm{padding:9px 10px;font-size:13px}
+
+.sensors{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.chk{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--line2);border-radius:999px;padding:7px 12px;font-size:12.5px;cursor:pointer;user-select:none;transition:.15s;color:var(--muted)}
+.chk input{appearance:none;width:14px;height:14px;border:1px solid var(--line2);border-radius:4px;cursor:pointer;position:relative;margin:0}
+.chk input:checked{background:var(--ignite);border-color:var(--ignite)}
+.chk input:checked::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #0B0E13;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.chk.on{border-color:var(--ignite);color:var(--txt)}
+
+.tools{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.btn2{flex:1;min-width:130px;background:var(--surface2);border:1px solid var(--line2);color:var(--txt);border-radius:11px;padding:13px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn2:hover{border-color:var(--ignite)}
+.btn2.save{border-color:#1f3d38;background:#15211f;color:var(--data)}
+.savednote{font-size:12px;color:var(--data);font-family:'IBM Plex Mono',monospace;margin-top:10px;display:none}
+
+.arch{margin-top:32px}
+.archhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.archhead .eyebrow{margin:0}
+.archhead select{width:auto;min-width:150px;margin-left:auto;font-size:12px;padding:8px 30px 8px 10px}
+.sess{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px;margin-bottom:10px}
+.sess .r1{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sess .cir{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14.5px}
+.sess .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint)}
+.sess .date{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--faint)}
+.sess .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.sess .acts button{background:var(--surface2);border:1px solid var(--line2);color:var(--muted);border-radius:8px;padding:7px 11px;font-size:12px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:.15s}
+.sess .acts button:hover{border-color:var(--ignite);color:var(--txt)}
+.sess .acts .del:hover{border-color:#5a2630;color:#ff9aa6}
+.empty{font-size:13px;color:var(--faint);text-align:center;padding:22px;border:1px dashed var(--line);border-radius:12px;line-height:1.5}
+
+/* Auto-llenado desde foto */
+.autobox{margin-top:14px;display:none}
+.autohead{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#AEB7C7;margin:0 0 10px;display:flex;gap:8px;align-items:center}
+.autohead .b{color:var(--ignite);font-weight:700}
+.param{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin-bottom:10px;border-left:3px solid var(--line2)}
+.param .pn{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.estado{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:6px;font-weight:600}
+.param .vals{display:flex;gap:20px;flex-wrap:wrap;margin-top:9px}
+.param .vals .col{display:flex;flex-direction:column;gap:2px}
+.param .vk{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.param .vv{font-size:14px;color:var(--txt);font-family:'IBM Plex Mono',monospace}
+.param .vv.rec{color:var(--data)}
+.param .why{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:9px}
+.subt{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;color:var(--txt);margin:18px 0 10px;display:flex;align-items:center;gap:10px}
+.subt .ln{flex:1;height:1px;background:var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandbar">
+    <div class="logoSlot" id="logoSlot" title="Toca para subir el logo del equipo">
+      <span class="ph" id="logoPh">LOGO<br>EQUIPO</span>
+      <img id="logoImg" alt="logo" style="display:none">
+    </div>
+    <div class="brandtxt">
+      <span class="eb">Telemetría</span>
+      <input class="tn" id="teamName" value="AD11 Racing Team" spellcheck="false" aria-label="Nombre del equipo">
+    </div>
+    <span class="live"><span class="dot"></span> <span id="clock">EN VIVO</span></span>
+    <button id="logoutBtn" title="Cerrar sesión" style="display:none;margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,.25);color:inherit;border-radius:8px;padding:4px 9px;font-size:11px;cursor:pointer">Salir</button>
+  </div>
+
+  <!-- 1. CONFIG -->
+  <div class="sec">
+    <div class="eyebrow"><b>01</b> Moto &amp; sistema</div>
+    <div class="card">
+      <div class="grid">
+        <div class="field">
+          <label>Sistema de telemetría</label>
+          <select id="sys"></select>
+        </div>
+        <div class="field">
+          <label>Modelo del equipo</label>
+          <select id="model"></select>
+        </div>
+        <div class="field">
+          <label>Marca de la moto</label>
+          <select id="marca"></select>
+        </div>
+        <div class="field">
+          <label>Modelo de la moto</label>
+          <input type="text" id="moto" placeholder="Ej: RSV4 / R1 / Panigale V4">
+        </div>
+        <div class="field">
+          <label>Año</label>
+          <input type="number" id="anio" placeholder="2024" min="1990" max="2030">
+        </div>
+        <div class="field">
+          <label>Categoría</label>
+          <select id="cat"></select>
+        </div>
+        <div class="field">
+          <label>Piloto</label>
+          <input type="text" id="piloto" value="Antonio">
+        </div>
+        <div class="field">
+          <label>Circuito</label>
+          <select id="circuito"></select>
+        </div>
+        <div class="field">
+          <label>Vuelta</label>
+          <input type="text" id="vuelta" placeholder="Ej: 7">
+        </div>
+        <div class="field" id="otroCircWrap" style="display:none">
+          <label>Circuito (otro)</label>
+          <input type="text" id="otroCirc" placeholder="Nombre del circuito">
+        </div>
+        <div class="field">
+          <label>Ubicación</label>
+          <a id="mapLink" class="maplink off" href="#" target="_blank" rel="noopener">📍 Ver pista en el mapa</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DATOS -->
+  <div class="sec">
+    <div class="eyebrow"><b>02</b> Datos de la sesión</div>
+    <div class="card">
+      <div class="grid">
+        <div>
+          <div class="drop" id="dropImg">
+            <div class="ic">📈</div>
+            <div class="t">Foto de los gráficos</div>
+            <div class="h">Pantalla / trazas de freno, suspensión…</div>
+          </div>
+          <div class="preview" id="prevImg"><img id="img" alt="vista previa"></div>
+        </div>
+        <div>
+          <div class="drop" id="dropCsv">
+            <div class="ic">🗂️</div>
+            <div class="t">Archivo de datos</div>
+            <div class="h">CSV exportado (Race Studio, Danas…)</div>
+          </div>
+          <div class="filechip" id="csvChip">📄 <span id="csvName"></span></div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--faint);margin:12px 0 0;line-height:1.6">El CSV da números exactos vuelta a vuelta. La foto se lee de la imagen — útil, pero menos precisa. Con cualquiera de los dos arrancamos.</p>
+      <button class="btn2" id="btnAuto" style="width:100%;margin-top:14px" disabled>📷 Leer foto y autocompletar parámetros</button>
+    </div>
+  </div>
+
+  <!-- AUTO-LLENADO -->
+  <div class="autobox" id="autoBox">
+    <div class="autohead"><span class="b">AUTO</span> Parámetros leídos de la foto</div>
+    <p class="resumen" id="autoNote" style="margin-bottom:12px"></p>
+    <div id="autoParams"></div>
+  </div>
+
+  <!-- 3. CONDICIONES & SETUP -->
+  <div class="sec">
+    <div class="eyebrow"><b>03</b> Condiciones &amp; setup</div>
+    <div class="card">
+      <div class="sub3">
+        <div class="field mini"><label>Temp. ambiente °C</label><input type="text" class="sm" id="tempAmb" placeholder="22"></div>
+        <div class="field mini"><label>Temp. pista °C</label><input type="text" class="sm" id="tempPista" placeholder="38"></div>
+        <div class="field mini"><label>Estado pista</label><select id="estadoPista"><option>Seco</option><option>Húmedo</option><option>Mojado</option></select></div>
+      </div>
+      <div class="sub3" style="margin-top:12px">
+        <div class="field mini"><label>Neum. delantero</label><div class="pair"><input type="text" class="sm" id="neuDelC" placeholder="Compuesto"><input type="text" class="sm" id="neuDelP" placeholder="bar"></div></div>
+        <div class="field mini"><label>Neum. trasero</label><div class="pair"><input type="text" class="sm" id="neuTraC" placeholder="Compuesto"><input type="text" class="sm" id="neuTraP" placeholder="bar"></div></div>
+        <div class="field mini"><label>Desarrollo (corona/piñón)</label><input type="text" class="sm" id="gearing" placeholder="Ej: 42/15"></div>
+      </div>
+      <div class="field mini" style="margin-top:14px">
+        <label>Sensores instalados</label>
+        <div class="sensors" id="sensors">
+          <label class="chk"><input type="checkbox" value="Presión de freno"> Presión de freno</label>
+          <label class="chk"><input type="checkbox" value="Pot. suspensión delantera"> Susp. delantera</label>
+          <label class="chk"><input type="checkbox" value="Pot. suspensión trasera"> Susp. trasera</label>
+          <label class="chk"><input type="checkbox" value="Ángulo de inclinación"> Ángulo inclinación</label>
+          <label class="chk"><input type="checkbox" value="GPS"> GPS</label>
+          <label class="chk"><input type="checkbox" value="Lambda"> Lambda</label>
+        </div>
+      </div>
+      <div class="sub3" style="margin-top:14px">
+        <div class="field mini"><label>Mejor vuelta</label><input type="text" class="sm" id="mejorVuelta" placeholder="1:42.350"></div>
+      </div>
+      <div class="field mini" style="margin-top:14px">
+        <label>Setup actual / cambios realizados</label>
+        <textarea id="setupNotes" placeholder="Ej: precarga del. +2, compresión del. −3 clicks, altura trasera +1 mm, freno motor mapa 2…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. COMPONENTES -->
+  <div class="sec">
+    <div class="eyebrow"><b>04</b> Componentes, suspensión &amp; neumático</div>
+    <div class="card">
+      <div class="sub3">
+        <div class="field mini"><label>Horquilla (marca/modelo)</label><input class="sm" id="cHorq" placeholder="Ej: Öhlins NIX 30"></div>
+        <div class="field mini"><label>Amortiguador</label><input class="sm" id="cAmort" placeholder="Ej: Öhlins TTX GP"></div>
+        <div class="field mini"><label>Bieletas / linkage</label><input class="sm" id="cLink" placeholder="Original / kit"></div>
+      </div>
+      <div class="sub3" style="margin-top:12px">
+        <div class="field mini"><label>Peso piloto (kg, con mono)</label><input class="sm" id="cPeso" placeholder="78"></div>
+      </div>
+
+      <div class="subt">Suspensión delantera <span class="ln"></span></div>
+      <div class="sub3">
+        <div class="field mini"><label>Muelle (N/mm)</label><input class="sm" id="cMuelleD" placeholder="9.5"></div>
+        <div class="field mini"><label>Precarga (mm/vueltas)</label><input class="sm" id="sfPre" placeholder="8 mm"></div>
+        <div class="field mini"><label>Compresión baja (clicks)</label><input class="sm" id="sfCompL" placeholder="12"></div>
+        <div class="field mini"><label>Compresión alta (vueltas)</label><input class="sm" id="sfCompH" placeholder="1.5"></div>
+        <div class="field mini"><label>Rebote (clicks)</label><input class="sm" id="sfReb" placeholder="14"></div>
+        <div class="field mini"><label>Altura en tijas (mm)</label><input class="sm" id="sfHeight" placeholder="5 mm"></div>
+        <div class="field mini"><label>Aire / nivel aceite</label><input class="sm" id="cAire" placeholder="150 mm"></div>
+        <div class="field mini"><label>Sag estático (mm)</label><input class="sm" id="sfSagS" placeholder="30"></div>
+        <div class="field mini"><label>Sag piloto (mm)</label><input class="sm" id="sfSagR" placeholder="33"></div>
+      </div>
+
+      <div class="subt">Suspensión trasera <span class="ln"></span></div>
+      <div class="sub3">
+        <div class="field mini"><label>Muelle (N/mm)</label><input class="sm" id="cMuelleT" placeholder="95"></div>
+        <div class="field mini"><label>Precarga (mm)</label><input class="sm" id="srPre" placeholder="8 mm"></div>
+        <div class="field mini"><label>Compresión baja (clicks)</label><input class="sm" id="srCompL" placeholder="10"></div>
+        <div class="field mini"><label>Compresión alta (vueltas)</label><input class="sm" id="srCompH" placeholder="1.5"></div>
+        <div class="field mini"><label>Rebote (clicks)</label><input class="sm" id="srReb" placeholder="12"></div>
+        <div class="field mini"><label>Altura / longitud (mm)</label><input class="sm" id="srHeight" placeholder="+1 mm"></div>
+        <div class="field mini"><label>CSC (si aplica)</label><input class="sm" id="srCSC" placeholder="—"></div>
+        <div class="field mini"><label>Sag estático (mm)</label><input class="sm" id="srSagS" placeholder="10"></div>
+        <div class="field mini"><label>Sag piloto (mm)</label><input class="sm" id="srSagR" placeholder="30"></div>
+      </div>
+
+      <div class="voicebar" style="margin-top:16px">
+        <button class="mic" id="micComp"><span class="mdot"></span> Dictar hardware/reglaje</button>
+        <span class="vhint" id="vhintComp">o añade notas abajo</span>
+      </div>
+      <textarea id="compNotes" placeholder="Notas extra de reglaje, cambios respecto al baseline, sensaciones del ajuste…"></textarea>
+      <button class="btn2" id="btnRef" style="width:100%;margin-top:14px">🔎 Buscar reglaje base del fabricante</button>
+      <div class="autobox" id="refBox">
+        <div class="autohead"><span class="b">REF</span> Reglaje base sugerido</div>
+        <p class="resumen" id="refNote" style="margin-bottom:12px"></p>
+        <div id="refParams"></div>
+        <div class="note" id="refSrc" style="margin-top:6px"></div>
+      </div>
+
+      <div class="subt">Neumático <span class="ln"></span></div>
+      <div class="sub3">
+        <div class="field mini"><label>Marca</label><select id="tBrand"><option>Pirelli</option><option>Michelin</option><option>Bridgestone</option><option>Dunlop</option><option>Metzeler</option><option>Continental</option><option>Otra</option></select></div>
+        <div class="field mini"><label>Modelo / compuesto</label><input class="sm" id="tModel" placeholder="Ej: Diablo Superbike SC1"></div>
+      </div>
+      <div class="sub3" style="margin-top:12px">
+        <div class="field mini"><label>Tu presión frío — Del. (bar)</label><input class="sm" id="tPresD" placeholder="1.9"></div>
+        <div class="field mini"><label>Tu presión frío — Tras. (bar)</label><input class="sm" id="tPresT" placeholder="1.7"></div>
+      </div>
+      <button class="btn2" id="btnTyre" style="width:100%;margin-top:14px">🔎 Buscar presión recomendada</button>
+      <div class="autobox" id="tyreBox">
+        <div class="autohead"><span class="b">NEU</span> Presión recomendada vs la tuya</div>
+        <p class="resumen" id="tyreNote" style="margin-bottom:12px"></p>
+        <div id="tyreParams"></div>
+        <div class="note" id="tyreSrc" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. SENSACIONES -->
+  <div class="sec">
+    <div class="eyebrow"><b>05</b> Sensaciones del piloto</div>
+    <div class="card">
+      <div class="voicebar">
+        <button class="mic" id="mic"><span class="mdot"></span> Dictar por voz</button>
+        <span class="vhint" id="vhint">o escribe abajo lo que sintió</span>
+      </div>
+      <textarea id="sens" placeholder="Ej: en la frenada de la 4 la moto se va larga, noto la delantera dura y rebota a la entrada. Atrás patina al acelerar saliendo de la 6…"></textarea>
+    </div>
+  </div>
+
+  <button class="go" id="go">Analizar sesión</button>
+  <div class="err" id="err"></div>
+
+  <!-- RESULTADOS -->
+  <div class="out" id="out">
+    <div class="eyebrow"><b>06</b> Lectura del ingeniero</div>
+    <div id="veredicto"></div>
+    <p class="resumen" id="resumen"></p>
+    <div id="findings"></div>
+    <div class="note" id="srcnote"></div>
+  </div>
+
+  <div class="tools">
+    <button class="btn2 save" id="btnSave">💾 Guardar sesión</button>
+    <button class="btn2" id="btnXls">⬇ Exportar Excel</button>
+    <button class="btn2" id="btnPdf">⬇ Exportar PDF</button>
+  </div>
+  <div class="savednote" id="savednote">Sesión guardada en el archivo ✓</div>
+
+  <!-- ARCHIVO -->
+  <div class="arch">
+    <div class="archhead">
+      <div class="eyebrow"><b>07</b> Archivo de sesiones</div>
+      <select id="archFilter"><option value="">Todos los circuitos</option></select>
+    </div>
+    <div id="archList"></div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ---- Catálogos reales ----
+const SYSTEMS = {
+  "AiM":        ["Solo 2 DL","XLog","MyChron 5","MyChron 6","GS-Dash","MXm","EVO5"],
+  "i2M":        ["Chrome Lite","Chrome Plus","Chrome Pro2","DataLog Pro"],
+  "2D":         ["Mini Logger","Micro Logger","V Logger"],
+  "MoTeC":      ["C125","C127","ADL3","M1 ECU log"],
+  "Starlane":   ["Davinci-S","Corsaro","Stealth GPS-4"],
+  "RaceBox":    ["RaceBox Mini","Mini S","Micro"],
+  "RaceChrono": ["RaceChrono Pro (app)"],
+  "Otro":       ["—"]
+};
+const MARCAS = ["Aprilia","BMW","Ducati","Honda","Kawasaki","KTM","MV Agusta","Suzuki","Triumph","Yamaha","Otra"];
+const CATS = ["MotoGP","Moto2","Moto3","Superbike (SBK)","Supersport","Superstock","Velocidad / Club","Trackday","Motocross / Enduro","Otra"];
+const CIRCUITS = {
+  "Argentina":["Autódromo Termas de Río Hondo","Autódromo Oscar y Juan Gálvez (Buenos Aires)","Autódromo Oscar Cabalén (Córdoba)","Autódromo Roberto Mouras (La Plata)","Autódromo Ciudad de Rosario – Juan M. Fangio","Autódromo El Villicum (San Juan)","Autódromo Rosamonte (Posadas)","Autódromo Ciudad de Paraná","Autódromo Provincia de La Pampa (Toay)","Autódromo de Concepción del Uruguay","Autódromo de Río Cuarto","Autódromo de Centenario (Neuquén)"],
+  "Brasil":["Autódromo José Carlos Pace – Interlagos (São Paulo)","Autódromo Internacional de Goiânia","Autódromo Internacional Nelson Piquet (Brasília)","Autódromo Velo Città (Mogi Guaçu)","Autódromo Velopark (RS)","Autódromo Internacional de Curitiba","Autódromo de Cascavel","Autódromo Internacional Ayrton Senna (Londrina)","Autódromo de Tarumã (Viamão)"],
+  "México":["Autódromo Hermanos Rodríguez (CDMX)","Autódromo Miguel E. Abed (Puebla)","Autódromo de Querétaro","Autódromo Monterrey","Autódromo Internacional de Aguascalientes","Autódromo Potosino (San Luis Potosí)"],
+  "Chile":["Autódromo Internacional de Codegua","Autódromo de La Serena","Autódromo de Coronel (Concepción)"],
+  "Colombia":["Autódromo de Tocancipá","Autódromo Serankwa (Tunja)"],
+  "Perú":["Autódromo La Chutana (Lima)"],
+  "Uruguay":["Autódromo Víctor Borrat Fabini – El Pinar","Autódromo Eduardo P. Cabrera (Rivera)"],
+  "Venezuela":["Autódromo Internacional de Turagua (Maracay)","Autódromo Pancho Pepe Cróquer (Caracas)"],
+  "Ecuador":["Autódromo Internacional de Yahuarcocha (Ibarra)"],
+  "Costa Rica":["Autódromo La Guácima"],
+  "Guatemala":["Autódromo Pedro Cofiño – Los Volcanes (Escuintla)"],
+  "Rep. Dominicana":["Autódromo Las Américas (Santo Domingo)"]
+};
+const CATCOLOR = {suspension:"--susp",electronica:"--elec",freno:"--glow",piloto:"--piloto",motor:"--motor",neumatico:"--neu"};
+const CATNAME  = {suspension:"Suspensión",electronica:"Electrónica",freno:"Freno",piloto:"Piloto",motor:"Motor",neumatico:"Neumático"};
+
+const $ = id => document.getElementById(id);
+let lastAnalysis=null, lastFuente=null;
+let currentKey=null; let customCircuits=[]; let lastExtract=null; let lastRef=null; let lastTyre=null;
+
+/* ===== Capa de acceso a IA =====================================================
+   AI_MODEL: nombre EXACTO del modelo de la API. Válidos: claude-opus-4-8,
+   claude-sonnet-4-6, claude-haiku-4-5-20251001.
+   SEGURIDAD: aquí la llamada va proxenada por el entorno SIN credenciales en el
+   cliente. Para desplegar como app propia, cambia API_ENDPOINT por la URL de TU
+   backend (que guarda la API key en el servidor y reenvía la petición). Así no se
+   expone ninguna credencial en el navegador.
+============================================================================== */
+/* ===== CONFIGURACIÓN DE LA PLATAFORMA =======================================
+   mode "demo"    -> funciona aquí (IA proxenada, datos locales del dispositivo).
+   mode "backend" -> producción: IA y BASE DE DATOS pasan por TU backend; la API
+                     key queda oculta en el servidor y la base es ÚNICA, compartida
+                     entre la app móvil y la versión de escritorio.
+   Para producir: mode:"backend" y backendURL = URL de tu servidor.            */
+const CONFIG={ mode:"gas", gasURL:"https://script.google.com/macros/s/AKfycbypkBR15N5V8stvuHYg40XrGZHyQSf-sW0ZN64pQw460TGO4p4lgR-EuTWbyw0cT9-M/exec", backendURL:"https://tu-servidor-ad11.com", allowDirectInDemo:false };
+// PRODUCCIÓN (gas): IA, login y base de datos pasan por Apps Script. La API key vive SOLO en el servidor (Script Properties). Ninguna llamada va directa a Anthropic.
+const AI_MODEL="claude-sonnet-4-6";
+const _GAS=()=>CONFIG.mode==="gas";
+let TOKEN=null, ROLE="admin";
+function tokGet(){ try{return localStorage.getItem("ad11_token");}catch(e){return null;} }
+function tokSet(t){ TOKEN=t||null; try{ if(t)localStorage.setItem("ad11_token",t); else localStorage.removeItem("ad11_token"); }catch(e){} }
+async function gasCall(action,payload){ const body=JSON.stringify(Object.assign({action:action,token:TOKEN},payload||{})); const r=await fetch(CONFIG.gasURL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:body}); if(!r.ok)throw new Error("HTTP "+r.status); return r.json(); }
+const API_ENDPOINT = CONFIG.mode==="backend" ? CONFIG.backendURL+"/api/ai" : "https://api.anthropic.com/v1/messages";
+async function callAI(body){ if(_GAS()){ const j=await gasCall("ai", body); if(j&&j.error) throw new Error(j.error); return j; } if(CONFIG.mode!=="backend" && CONFIG.allowDirectInDemo===false){ throw new Error("IA deshabilitada fuera del backend (producción)."); } const r=await fetch(API_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:AI_MODEL,max_tokens:1000,...body})}); return r.json(); }
+function _badge(label,cvar){ const col=getComputedStyle(document.documentElement).getPropertyValue(cvar).trim(); return '<span class="estado" style="color:'+col+';background:'+col+'22">'+esc(label)+'</span>'; }
+const _ORIGEN={fabricante:["FABRICANTE","--data"],manual:["MANUAL","--data"],base:["BASE AD11","--data"],principio:["PRINCIPIO ING.","--susp"],inferencia:["INFERENCIA IA","--glow"],ia:["INFERENCIA IA","--glow"]};
+function originBadge(o){ const e=_ORIGEN[norm(o||"").replace(/[^a-z]/g,"")]||_ORIGEN.inferencia; return _badge(e[0],e[1]); }
+const _DATO={exacto:["EXACTO","--data"],leidoimagen:["LEÍDO IMAGEN","--susp"],estimado:["ESTIMADO","--glow"],nolegible:["NO LEGIBLE","--motor"]};
+function datoBadge(d){ const e=_DATO[norm(d||"").replace(/[^a-z]/g,"")]||_DATO.leidoimagen; return _badge(e[0],e[1]); }
+const DEFAULT_LOGO="data:image/jpeg;base64,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";
+
+// Poblar selects
+const sysSel=$("sys"), modelSel=$("model");
+Object.keys(SYSTEMS).forEach(s=>sysSel.add(new Option(s,s)));
+function fillModels(){ modelSel.innerHTML=""; SYSTEMS[sysSel.value].forEach(m=>modelSel.add(new Option(m,m))); }
+sysSel.onchange=fillModels; fillModels();
+MARCAS.forEach(m=>$("marca").add(new Option(m,m)));
+CATS.forEach(c=>$("cat").add(new Option(c,c)));
+
+// Circuitos por país (optgroups)
+const circSel=$("circuito");
+circSel.add(new Option("— Selecciona pista —",""));
+Object.keys(CIRCUITS).forEach(pais=>{
+  const og=document.createElement("optgroup");og.label=pais;
+  CIRCUITS[pais].forEach(c=>{const o=new Option(c,c);og.appendChild(o);});
+  circSel.appendChild(og);
+});
+circSel.add(new Option("Otra / no listada","__otra__"));
+const mapLink=$("mapLink"), otroWrap=$("otroCircWrap");
+function updateCircuit(){
+  const v=circSel.value;
+  otroWrap.style.display = v==="__otra__" ? "flex" : "none";
+  const name = v==="__otra__" ? ($("otroCirc").value||"") : v;
+  if(name){ mapLink.href="https://www.google.com/maps/search/"+encodeURIComponent(name+" autódromo circuito"); mapLink.classList.remove("off"); }
+  else { mapLink.href="#"; mapLink.classList.add("off"); }
+}
+circSel.onchange=updateCircuit;
+$("otroCirc").oninput=updateCircuit;
+function rebuildCustom(){
+  const old=document.getElementById("ogCustom"); if(old) old.remove();
+  if(!customCircuits.length) return;
+  const og=document.createElement("optgroup"); og.id="ogCustom"; og.label="Mis circuitos";
+  customCircuits.forEach(c=>og.appendChild(new Option(c,c)));
+  circSel.insertBefore(og, circSel.children[1]||null);
+}
+function addCustomCircuit(name){
+  name=(name||"").trim(); if(!name) return;
+  const exists=[...circSel.options].some(o=>o.value.toLowerCase()===name.toLowerCase());
+  if(!exists){
+    if(!customCircuits.some(c=>c.toLowerCase()===name.toLowerCase())){ customCircuits.push(name); sSet("ui:customCircuits", JSON.stringify(customCircuits)); }
+    rebuildCustom();
+  }
+  const opt=[...circSel.options].find(o=>o.value.toLowerCase()===name.toLowerCase());
+  if(opt) circSel.value=opt.value;
+  $("otroCirc").value=""; otroWrap.style.display="none"; updateCircuit();
+}
+function ensureCustom(){ if(circSel.value==="__otra__"){ const nm=$("otroCirc").value.trim(); if(nm) addCustomCircuit(nm); } }
+
+// Clock
+function tick(){const d=new Date();$("clock").textContent=d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+
+// ---- Uploads ----
+let imgB64=null,imgMime=null,csvText=null;
+const dropImg=$("dropImg");
+const imgInput=document.createElement("input");imgInput.type="file";imgInput.accept="image/*";
+dropImg.onclick=()=>imgInput.click();
+imgInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgB64=r.result.split(",")[1];imgMime=f.type;$("img").src=r.result;$("prevImg").style.display="block";dropImg.classList.add("has");dropImg.querySelector(".t").textContent="Foto cargada ✓";$("btnAuto").disabled=false;};r.readAsDataURL(f);};
+
+const dropCsv=$("dropCsv");
+const csvInput=document.createElement("input");csvInput.type="file";csvInput.accept=".csv,.txt,text/csv,text/plain";
+dropCsv.onclick=()=>csvInput.click();
+csvInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{csvText=r.result;$("csvName").textContent=f.name;$("csvChip").style.display="flex";dropCsv.classList.add("has");dropCsv.querySelector(".t").textContent="Archivo cargado ✓";};r.readAsText(f);};
+
+// ---- Voz (dictado en español) ----
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const micBtn=$("mic");
+if(SR){
+  let rec=new SR();rec.lang="es-ES";rec.continuous=true;rec.interimResults=false;let on=false;
+  micBtn.onclick=()=>{ if(!on){try{rec.start();on=true;micBtn.classList.add("rec");micBtn.lastChild.textContent=" Escuchando…";}catch(e){}} else{rec.stop();} };
+  rec.onresult=ev=>{let t="";for(let i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;const ta=$("sens");ta.value=(ta.value+" "+t).trim();};
+  rec.onend=()=>{on=false;micBtn.classList.remove("rec");micBtn.lastChild.textContent=" Dictar por voz";};
+}else{ micBtn.style.display="none"; $("vhint").textContent="Escribe lo que sintió el piloto"; }
+(function(){
+  if(!SR){ $("micComp").style.display="none"; $("vhintComp").textContent="Escribe tu material y reglaje"; return; }
+  let rec=new SR(); rec.lang="es-ES"; rec.continuous=true; rec.interimResults=false; let on=false; const b=$("micComp");
+  b.onclick=()=>{ if(!on){try{rec.start();on=true;b.classList.add("rec");b.lastChild.textContent=" Escuchando…";}catch(e){}} else rec.stop(); };
+  rec.onresult=ev=>{let t="";for(let i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;const ta=$("compNotes");ta.value=(ta.value+" "+t).trim();};
+  rec.onend=()=>{on=false;b.classList.remove("rec");b.lastChild.textContent=" Dictar hardware";};
+})();
+
+// ---- Análisis ----
+$("go").onclick=analyze;
+function analyze(){
+  $("err").style.display="none";
+  ensureCustom();
+  if(!imgB64 && !csvText && !$("sens").value.trim()){
+    showErr("Carga una foto, un CSV, o describe las sensaciones del piloto para poder analizar.");return;
+  }
+  const btn=$("go");btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Analizando datos…';
+
+  const circuito = circSel.value==="__otra__" ? ($("otroCirc").value||"otro circuito") : (circSel.value||"sin circuito");
+  const vuelta = $("vuelta").value ? "vuelta "+$("vuelta").value : "sin vuelta indicada";
+  const meta=`Sistema: ${sysSel.value} ${modelSel.value} | Moto: ${$("marca").value} ${$("moto").value||"(modelo n/d)"} ${$("anio").value||""} | Categoría: ${$("cat").value} | Piloto: ${$("piloto").value||"Piloto"} | Circuito: ${circuito} (${vuelta})`;
+  const sens=$("sens").value.trim();
+
+  let fuente = imgB64 && csvText ? "foto+csv" : imgB64 ? "foto" : csvText ? "csv" : "solo sensaciones";
+  const st0=getState();
+  const cond=`amb ${st0.tempAmb||"-"}°C, pista ${st0.tempPista||"-"}°C, ${st0.estadoPista}. Neumáticos: del ${st0.neuDelC||"-"} ${st0.neuDelP||""}, tras ${st0.neuTraC||"-"} ${st0.neuTraP||""}. Desarrollo ${st0.gearing||"-"}. Mejor vuelta ${st0.mejorVuelta||"-"}.`;
+  const sensoresTxt = st0.sensores.length ? st0.sensores.join(", ") : "no especificados";
+  let txt = `FICHA: ${meta}\nFUENTE DE DATOS: ${fuente}\nCONDICIONES: ${cond}\nSETUP / CAMBIOS RECIENTES: ${st0.setupNotes||"n/d"}\nSENSORES INSTALADOS: ${sensoresTxt}\n`;
+  if(lastExtract&&lastExtract.parametros){ txt += "PARAMETROS LEIDOS DE LA FOTO (auto): "+lastExtract.parametros.map(p=>p.nombre+"="+p.detectado).join("; ")+"\n"; }
+  const cm0=st0.componentes||{}, dl0=cm0.del||{}, tr0=cm0.tras||{}, nu0=st0.neumatico||{};
+  txt += "COMPONENTES: horquilla "+(cm0.horq||"n/d")+", amortiguador "+(cm0.amort||"n/d")+", peso "+(cm0.peso||"-")+"kg.\n";
+  txt += "SUSP DEL: muelle "+(dl0.muelle||"-")+", precarga "+(dl0.precarga||"-")+", compB "+(dl0.compL||"-")+", compA "+(dl0.compH||"-")+", rebote "+(dl0.reb||"-")+", altura "+(dl0.altura||"-")+", aire "+(dl0.aire||"-")+", sag "+(dl0.sagS||"-")+"/"+(dl0.sagR||"-")+".\n";
+  txt += "SUSP TRAS: muelle "+(tr0.muelle||"-")+", precarga "+(tr0.precarga||"-")+", compB "+(tr0.compL||"-")+", compA "+(tr0.compH||"-")+", rebote "+(tr0.reb||"-")+", altura "+(tr0.altura||"-")+", CSC "+(tr0.csc||"-")+", sag "+(tr0.sagS||"-")+"/"+(tr0.sagR||"-")+".\n";
+  if(cm0.notas) txt += "NOTAS REGLAJE: "+cm0.notas+"\n";
+  txt += "NEUMATICO: "+(nu0.marca||"")+" "+(nu0.modelo||"")+", presion frio del "+(nu0.presD||"-")+" / tras "+(nu0.presT||"-")+" bar.\n";
+  if(lastRef&&lastRef.items){ txt += "REGLAJE BASE FABRICANTE (ref): "+lastRef.items.map(i=>i.nombre+"="+i.valor).join("; ")+"\n"; }
+  if(lastTyre&&lastTyre.evaluacion){ txt += "PRESION RECOMENDADA: "+lastTyre.evaluacion.map(e=>e.eje+" "+e.estado).join("; ")+"\n"; }
+  if(csvText){ txt += `\nDATOS CSV (exactos):\n"""${csvText.slice(0,6000)}"""\n`; }
+  if(sens){ txt += `\nSENSACIONES DEL PILOTO (lo que sintió): "${sens}"\n`; }
+  if(imgB64){ txt += `\nSe adjunta una FOTO de los gráficos/pantalla de telemetría. Léela: identifica canales (freno, horquilla, amortiguador, gas, etc.), picos, topes y dónde la suspensión hace fondo.\n`; }
+
+  const sysPrompt = `Eres un ingeniero de datos de telemetría de motos de competición con 20 años en boxes (MotoGP, SBK). Analizas DATOS REALES. Reglas estrictas:
+- No inventes números ni canales que no puedas ver o deducir de los datos aportados.
+- Si la fuente es una foto y no es legible o falta información, dilo en "resumen" y baja la confianza.
+- Si hay CSV, basa los hallazgos en esos números. Si solo hay sensaciones, interprétalas como hipótesis y márcalo.
+- Distingue SIEMPRE si el problema es de REGLAJE (suspensión/electrónica/freno/motor/neumático) o de PILOTAJE (piloto). Las sensaciones del piloto sirven para decidirlo.
+- Razona solo sobre canales cuyos sensores estén instalados. Si para una conclusión faltaría un sensor que no está, dilo en vez de inventarlo.
+- Ten en cuenta las condiciones (temp. pista, neumático) y el setup/cambios recientes al recomendar.
+- Habla directo al piloto por su nombre, claro y técnico, como en boxes. Ej: "Antonio, en la frenada de la 4 la horquilla hace fondo…".
+Devuelve SOLO JSON válido (sin markdown, sin texto fuera). Máximo 5 hallazgos, los más importantes. Esquema:
+{"resumen":"1-2 frases","veredicto":"qué tocar PRIMERO y por qué, 1-2 frases","hallazgos":[{"canal":"nombre","categoria":"suspension|electronica|freno|piloto|motor|neumatico","ubicacion":"curva/vuelta o 'general'","observacion":"qué pasa en los datos","causa":"por qué pasa","accion":"modificación concreta (clicks de compresión, muelle, mapa, freno motor, técnica…)","confianza":"alta|media|baja"}]}`;
+
+  const content=[];
+  if(imgB64) content.push({type:"image",source:{type:"base64",media_type:imgMime,data:imgB64}});
+  content.push({type:"text",text:txt});
+
+  callAI({system:sysPrompt,messages:[{role:"user",content}]})
+  .then(data=>{
+    let raw=(data.content||[]).map(b=>b.text||"").join("").trim();
+    raw=raw.replace(/```json|```/g,"").trim();
+    let j;try{j=JSON.parse(raw);}catch(e){ throw new Error("RAW:"+raw); }
+    render(j,fuente);
+    persistSession({silentIfNoCircuit:true});
+  })
+  .catch(e=>{
+    if(String(e).startsWith("Error: RAW:")){ $("out").style.display="block";$("veredicto").innerHTML="";$("resumen").textContent="";$("findings").innerHTML='<div class="finding"><div class="row"><span class="v">'+String(e).slice(11)+'</span></div></div>';$("srcnote").textContent="";$("out").scrollIntoView({behavior:"smooth"}); }
+    else showErr("No se pudo completar el análisis: "+e.message+". Revisa la conexión e inténtalo de nuevo.");
+  })
+  .finally(()=>{btn.disabled=false;btn.textContent="Analizar sesión";});
+}
+
+function render(j,fuente){
+  lastAnalysis=j; lastFuente=fuente;
+  $("out").style.display="block";
+  $("veredicto").innerHTML = j.veredicto ? `<div class="veredicto"><div class="lbl">Prioridad</div><p>${esc(j.veredicto)}</p></div>` : "";
+  $("resumen").textContent = j.resumen||"";
+  const fc=$("findings");fc.innerHTML="";
+  (j.hallazgos||[]).forEach(h=>{
+    const cvar=CATCOLOR[h.categoria]||"--line2";
+    const cname=CATNAME[h.categoria]||h.categoria||"—";
+    const col=getComputedStyle(document.documentElement).getPropertyValue(cvar).trim();
+    const el=document.createElement("div");el.className="finding";el.style.borderLeftColor=col;
+    el.innerHTML=`<div class="top">
+        <span class="chan">${esc(h.canal||"Canal")}</span>
+        <span class="tag" style="color:${col};background:${col}22">${cname}</span>
+        <span class="loc">${esc(h.ubicacion||"")}</span>
+      </div>
+      ${row("Observa",h.observacion)}
+      ${row("Causa",h.causa)}
+      ${row("Acción",h.accion)}
+      <div class="conf">Confianza: ${esc(h.confianza||"—")}</div>`;
+    fc.appendChild(el);
+  });
+  const map={"foto":"Leído de la foto — precisión limitada. Para datos exactos, exporta el CSV.","csv":"Basado en el CSV (números reales).","foto+csv":"Foto + CSV combinados.","solo sensaciones":"Solo sensaciones del piloto: hipótesis a confirmar con datos."};
+  $("srcnote").textContent="Fuente: "+(map[fuente]||fuente);
+  $("out").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function row(k,v){return v?`<div class="row"><span class="k">${k}</span><span class="v">${esc(v)}</span></div>`:"";}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function showErr(m){const e=$("err");e.textContent=m;e.style.display="block";e.scrollIntoView({behavior:"smooth"});}
+
+/* ---------- Auto-llenado desde foto ---------- */
+$("btnAuto").onclick=autofill;
+function norm(s){return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
+async function autofill(){
+  if(!imgB64){ showErr("Carga primero la foto de la telemetría."); return; }
+  const btn=$("btnAuto"); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Leyendo foto…';
+  const ctx=`Moto ${$("marca").value} ${$("moto").value} ${$("anio").value||""}, ${$("cat").value}, sistema ${sysSel.value} ${modelSel.value}, piloto ${$("piloto").value||""}.`;
+  const labels=[...document.querySelectorAll('#sensors input')].map(c=>c.value).join("; ");
+  const sys=`Eres ingeniero de telemetria de motos de competicion. Lee la FOTO de la pantalla/datos de telemetria y EXTRAE de forma exhaustiva los parametros visibles. Reglas:
+- No inventes. Si un valor no se ve, ponlo como "n/d". Si la foto no es legible, legible:false y explica en nota.
+- Clasifica cada dato en "fuente_dato": exacto (numero claramente impreso), leido_imagen (leido de un grafico/pantalla), estimado (deducido), no_legible.
+- Detecta que sensores hay (freno, suspension del/tras, TPS/gas, RPM, velocidad, angulo, temp. aire/agua, lambda, GPS, presion de neumatico).
+- "recomendado": solo si hay base de ingenieria real; si depende del setup/neumatico/pista, escribe esa condicion en vez de un numero inventado.
+- "porque": una frase de por que ese valor importa o que implica.
+Devuelve SOLO JSON (sin markdown). Maximo 12 parametros, textos breves:
+{"legible":true,"nota":"","sensores_detectados":["..."],"ficha":{"mejorVuelta":"","vuelta":"","tempPista":"","tempAmb":""},"parametros":[{"nombre":"","detectado":"","recomendado":"","estado":"ok|alto|bajo|atencion|n/d","fuente_dato":"exacto|estimado|leido_imagen|no_legible","porque":""}]}
+Para sensores_detectados usa, cuando apliquen, estos nombres exactos: ${labels}.`;
+  const content=[{type:"image",source:{type:"base64",media_type:imgMime,data:imgB64}},{type:"text",text:"CONTEXTO: "+ctx+"\nLee la foto y autocompleta todos los parametros que veas."}];
+  try{
+    const data=await callAI({system:sys,messages:[{role:"user",content}]});
+    let raw=(data.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+    const j=JSON.parse(raw); lastExtract=j; applyExtract(j);
+  }catch(e){ showErr("No se pudo leer la foto automaticamente. Prueba con una imagen mas nitida o mas cercana a los datos."); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+function applyExtract(j){
+  if(j.sensores_detectados&&j.sensores_detectados.length){
+    document.querySelectorAll('#sensors input').forEach(c=>{ const hit=j.sensores_detectados.some(x=>norm(x).includes(norm(c.value))||norm(c.value).includes(norm(x))); if(hit){c.checked=true;syncChk(c);} });
+  }
+  const fc=j.ficha||{};
+  if(fc.mejorVuelta&&!$("mejorVuelta").value)$("mejorVuelta").value=fc.mejorVuelta;
+  if(fc.vuelta&&!$("vuelta").value)$("vuelta").value=fc.vuelta;
+  if(fc.tempPista&&!$("tempPista").value)$("tempPista").value=fc.tempPista;
+  if(fc.tempAmb&&!$("tempAmb").value)$("tempAmb").value=fc.tempAmb;
+  $("autoNote").textContent=(j.legible===false?"\u26A0 ":"")+(j.nota||"");
+  const colmap={ok:"--data",atencion:"--glow",alto:"--motor",bajo:"--susp","n/d":"--faint"};
+  $("autoParams").innerHTML=(j.parametros||[]).map(p=>{
+    const cvar=colmap[norm(p.estado||"")]||"--line2";
+    const col=getComputedStyle(document.documentElement).getPropertyValue(cvar).trim();
+    return `<div class="param" style="border-left-color:${col}">
+      <div class="pn">${esc(p.nombre||"Parametro")} <span class="estado" style="color:${col};background:${col}22">${esc(p.estado||"n/d")}</span> ${datoBadge(p.fuente_dato)}</div>
+      <div class="vals">
+        <div class="col"><span class="vk">Detectado</span><span class="vv">${esc(p.detectado||"n/d")}</span></div>
+        <div class="col"><span class="vk">Recomendado</span><span class="vv rec">${esc(p.recomendado||"\u2014")}</span></div>
+      </div>
+      ${p.porque?`<div class="why">${esc(p.porque)}</div>`:""}
+    </div>`;
+  }).join("");
+  $("autoBox").style.display="block";
+  $("autoBox").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- Reglaje de fabricante (base AD11 -> internet) ---------- */
+$("btnRef").onclick=refSearch;
+function refKey(){ return ["cHorq","cAmort","cMuelleD","cMuelleT","cPeso"].map(id=>norm($(id).value).replace(/[^a-z0-9]+/g,"-")).join("_").replace(/^_+|_+$/g,""); }
+async function refSearch(){
+  const hasHW=$("cHorq").value||$("cAmort").value||$("compNotes").value.trim();
+  if(!hasHW){ showErr("Indica tu horquilla/amortiguador o descríbelo abajo para buscar el reglaje."); return; }
+  const k=refKey(), key="ref:"+k;
+  try{ if(k){ const c=await sGet(key); if(c){ lastRef=JSON.parse(c); renderRef(lastRef,"base"); return; } } }catch(e){}
+  const btn=$("btnRef"); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Buscando en fabricante…';
+  const moto=`${$("marca").value} ${$("moto").value} ${$("anio").value||""}`.trim();
+  const hw=`Horquilla: ${$("cHorq").value||"n/d"}. Amortiguador: ${$("cAmort").value||"n/d"}. Bieletas: ${$("cLink").value||"n/d"}. Muelles: del ${$("cMuelleD").value||"n/d"} N/mm, tras ${$("cMuelleT").value||"n/d"} N/mm. Aire horquilla: ${$("cAire").value||"n/d"}. Peso piloto: ${$("cPeso").value||"n/d"} kg. Reglaje actual: ${$("compNotes").value||"n/d"}.`;
+  const sys=`Eres ingeniero de suspension de motos de competicion. Busca en la web el REGLAJE BASE recomendado por el FABRICANTE (Ohlins, K-Tech, Showa, WP, Andreani, Bitubo) o el manual OEM para los componentes y la moto indicados. Prioriza fuentes oficiales del fabricante.
+- Da valores concretos solo si los encuentras en fuente fiable; si no, indica que no hay dato oficial y ofrece el principio de ingenieria.
+- Advierte SIEMPRE que es un punto de partida que depende de la rigidez del muelle, el peso del piloto y la pista.
+- En cada item marca "origen": fabricante o manual (dato real), principio (ingenieria general) o inferencia (estimacion IA), con su "confianza".
+- Incluye la fuente en "fuente".
+Devuelve SOLO JSON (sin markdown), maximo 8 items, textos breves:
+{"encontrado":true,"resumen":"","items":[{"nombre":"","valor":"","origen":"fabricante|manual|principio|inferencia","confianza":"alta|media|baja","porque":""}],"fuente":"","aviso":""}`;
+  try{
+    const data=await callAI({system:sys,messages:[{role:"user",content:`MOTO: ${moto}\n${hw}\nBusca el reglaje base de fabricante para esto.`}],tools:[{type:"web_search_20250305",name:"web_search"}]});
+    let raw=(data.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+    const j=JSON.parse(raw); j.consultadoEl=new Date().toISOString(); lastRef=j; renderRef(j,"web"); if(k) sSet(key, JSON.stringify(j));
+  }catch(e){
+    try{
+      const d2=await callAI({system:sys+"\nNO tienes acceso a buscar en internet ahora: da una ESTIMACION de ingenieria. Marca cada origen como 'inferencia', confianza media o baja, y en aviso indica que es estimacion IA sin verificar en fuente.",messages:[{role:"user",content:`MOTO: ${moto}\n${hw}`}]});
+      let r2=(d2.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+      const j2=JSON.parse(r2); j2.consultadoEl=new Date().toISOString(); if(!j2.aviso)j2.aviso="Estimacion IA sin verificar en fuente oficial."; lastRef=j2; renderRef(j2,"web"); if(k) sSet(key, JSON.stringify(j2));
+    }catch(e2){ showErr("No se pudo obtener el reglaje ahora. Inténtalo de nuevo o describe el componente con más detalle."); }
+  }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+function renderRef(j,origin){
+  $("refNote").textContent=(j.encontrado===false?"\u26A0 ":"")+(j.resumen||"");
+  $("refParams").innerHTML=(j.items||[]).map(p=>`<div class="param" style="border-left-color:var(--data)"><div class="pn">${esc(p.nombre||"Ajuste")} ${originBadge(p.origen)}</div><div class="vals"><div class="col"><span class="vk">Recomendado</span><span class="vv rec">${esc(p.valor||"\u2014")}</span></div></div><div class="conf">Confianza: ${esc(p.confianza||"—")}</div>${p.porque?`<div class="why">${esc(p.porque)}</div>`:""}</div>`).join("");
+  let o = origin==="base" ? "Desde tu base de datos AD11" : "Buscado en internet (fuente de fabricante)"; if(j.consultadoEl) o+=" · consultado "+new Date(j.consultadoEl).toLocaleDateString('es-ES');
+  $("refSrc").innerHTML = o + (j.fuente?" · "+esc(j.fuente):"") + (j.aviso?'<br><span style="color:var(--glow)">\u26A0 '+esc(j.aviso)+'</span>':'');
+  $("refBox").style.display="block"; $("refBox").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- Presion de neumatico (base AD11 -> internet) ---------- */
+$("btnTyre").onclick=tyreSearch;
+function tyreKey(){ return norm($("tBrand").value+"-"+$("tModel").value+"-"+$("tPresD").value+"-"+$("tPresT").value).replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,""); }
+async function tyreSearch(){
+  if(!$("tModel").value.trim()){ showErr("Indica el modelo/compuesto del neumatico para buscar la presion recomendada."); return; }
+  const k=tyreKey(), key="tyre:"+k;
+  try{ const c=await sGet(key); if(c){ lastTyre=JSON.parse(c); renderTyre(lastTyre,"base"); return; } }catch(e){}
+  const btn=$("btnTyre"); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Buscando presion…';
+  const moto=`${$("marca").value} ${$("moto").value}`.trim();
+  const q=`Neumatico ${$("tBrand").value} ${$("tModel").value}. Moto ${moto}, categoria ${$("cat").value}. Presion actual en frio del piloto: delantero ${$("tPresD").value||"n/d"} bar, trasero ${$("tPresT").value||"n/d"} bar.`;
+  const sys=`Eres ingeniero de neumaticos de motos de competicion. Busca en la web la PRESION RECOMENDADA por el FABRICANTE del neumatico indicado para pista. Prioriza fuentes oficiales del fabricante (Pirelli, Michelin, Bridgestone, Dunlop, Metzeler).
+- Da presion en FRIO y en CALIENTE/funcionamiento (bar) para delantero y trasero, y temperatura/tiempo de MANTA si lo publican.
+- Compara la presion en frio del piloto con la recomendada y marca estado ok/alta/baja por eje, con un porque breve.
+- Marca "origen": fabricante (fuente oficial) o inferencia (estimacion IA), y "confianza".
+- Si no hay dato oficial fiable, dilo y no inventes numeros.
+Devuelve SOLO JSON (sin markdown), breve:
+{"encontrado":true,"resumen":"","frio":{"del":"","tras":""},"caliente":{"del":"","tras":""},"manta":{"temp":"","min":""},"evaluacion":[{"eje":"Delantero","tu":"","estado":"ok|alta|baja","porque":""},{"eje":"Trasero","tu":"","estado":"ok|alta|baja","porque":""}],"fuente":"","origen":"fabricante|inferencia","confianza":"alta|media|baja","aviso":""}`;
+  try{
+    const data=await callAI({system:sys,messages:[{role:"user",content:q}],tools:[{type:"web_search_20250305",name:"web_search"}]});
+    let raw=(data.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+    const j=JSON.parse(raw); j.consultadoEl=new Date().toISOString(); lastTyre=j; renderTyre(j,"web"); if(k) sSet(key, JSON.stringify(j));
+  }catch(e){
+    try{
+      const d2=await callAI({system:sys+"\nNO tienes acceso a buscar en internet ahora: da una ESTIMACION. Marca origen 'inferencia', confianza media o baja, y en aviso indica que es estimacion IA sin verificar en fuente.",messages:[{role:"user",content:q}]});
+      let r2=(d2.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
+      const j2=JSON.parse(r2); j2.consultadoEl=new Date().toISOString(); if(!j2.aviso)j2.aviso="Estimacion IA sin verificar en fuente oficial."; lastTyre=j2; renderTyre(j2,"web"); if(k) sSet(key, JSON.stringify(j2));
+    }catch(e2){ showErr("No se pudo obtener la presion recomendada ahora. Revisa el modelo del neumatico."); }
+  }
+  finally{ btn.disabled=false; btn.textContent=old; }
+}
+function renderTyre(j,origin){
+  $("tyreNote").textContent=(j.encontrado===false?"\u26A0 ":"")+(j.resumen||"");
+  const colmap={ok:"--data",alta:"--motor",baja:"--susp"};
+  let html=`<div class="param" style="border-left-color:var(--data)"><div class="pn">Presion recomendada ${originBadge(j.origen)}</div><div class="vals">
+    <div class="col"><span class="vk">Frio del/tras</span><span class="vv rec">${esc((j.frio&&j.frio.del)||"-")} / ${esc((j.frio&&j.frio.tras)||"-")}</span></div>
+    <div class="col"><span class="vk">Caliente del/tras</span><span class="vv rec">${esc((j.caliente&&j.caliente.del)||"-")} / ${esc((j.caliente&&j.caliente.tras)||"-")}</span></div>
+    <div class="col"><span class="vk">Manta</span><span class="vv">${esc((j.manta&&j.manta.temp)||"-")} ${esc((j.manta&&j.manta.min)||"")}</span></div>
+  </div></div>`;
+  (j.evaluacion||[]).forEach(e=>{ const col=getComputedStyle(document.documentElement).getPropertyValue(colmap[norm(e.estado||"")]||"--line2").trim();
+    html+=`<div class="param" style="border-left-color:${col}"><div class="pn">${esc(e.eje||"Eje")} <span class="estado" style="color:${col};background:${col}22">${esc(e.estado||"-")}</span></div>
+      <div class="vals"><div class="col"><span class="vk">Tu presion (frio)</span><span class="vv">${esc(e.tu||"-")}</span></div></div>
+      ${e.porque?`<div class="why">${esc(e.porque)}</div>`:""}</div>`;
+  });
+  $("tyreParams").innerHTML=html;
+  let o = origin==="base" ? "Desde tu base de datos AD11" : "Buscado en internet (fabricante del neumatico)"; if(j.confianza) o+=" · confianza "+esc(j.confianza); if(j.consultadoEl) o+=" · consultado "+new Date(j.consultadoEl).toLocaleDateString('es-ES');
+  $("tyreSrc").innerHTML = o + (j.fuente?" \u00b7 "+esc(j.fuente):"") + (j.aviso?'<br><span style="color:var(--glow)">\u26A0 '+esc(j.aviso)+'</span>':'');
+  $("tyreBox").style.display="block"; $("tyreBox").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- Logo & nombre de equipo ---------- */
+const logoInput=document.createElement("input");logoInput.type="file";logoInput.accept="image/*";
+$("logoSlot").onclick=()=>logoInput.click();
+logoInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{$("logoImg").src=r.result;$("logoImg").style.display="block";$("logoPh").style.display="none";await sSet("ui:logo",r.result);};r.readAsDataURL(f);};
+$("teamName").onchange=async()=>{ await sSet("ui:team",$("teamName").value); };
+
+/* ---------- Sensores: toggle visual ---------- */
+function syncChk(c){c.parentElement.classList.toggle('on',c.checked);}
+document.querySelectorAll('#sensors input').forEach(c=>c.addEventListener('change',()=>syncChk(c)));
+
+/* ---------- Almacenamiento (persistente con fallback) ---------- */
+const MEM={};
+const hasStore=(typeof window.storage!=="undefined")&&window.storage;
+const _BK=()=>CONFIG.mode==="backend";
+async function sGet(k){ if(_GAS()){ try{ const j=await gasCall("kv_get",{key:k}); return (j&&j.value!=null)?j.value:null; }catch(e){ return null; } } if(_BK()){ try{ const r=await fetch(CONFIG.backendURL+"/api/kv?key="+encodeURIComponent(k)); if(!r.ok)return null; const j=await r.json(); return (j&&j.value!=null)?j.value:null; }catch(e){ return null; } } try{ if(hasStore){const r=await window.storage.get(k); return r?r.value:null;} }catch(e){} return (k in MEM)?MEM[k]:null; }
+async function sSet(k,v){ if(_GAS()){ try{ const j=await gasCall("kv_set",{key:k,value:v}); return !(j&&j.error); }catch(e){ return false; } } if(_BK()){ try{ await fetch(CONFIG.backendURL+"/api/kv",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:k,value:v})}); return true; }catch(e){ return false; } } try{ if(hasStore){await window.storage.set(k,v);return true;} }catch(e){} MEM[k]=v; return true; }
+async function sDel(k){ if(_GAS()){ try{ await gasCall("kv_del",{key:k}); return; }catch(e){ return; } } if(_BK()){ try{ await fetch(CONFIG.backendURL+"/api/kv?key="+encodeURIComponent(k),{method:"DELETE"}); return; }catch(e){ return; } } try{ if(hasStore){await window.storage.delete(k);} }catch(e){} delete MEM[k]; }
+async function sList(p){ if(_GAS()){ try{ const j=await gasCall("kv_list",{prefix:p}); return j.keys||[]; }catch(e){ return []; } } if(_BK()){ try{ const r=await fetch(CONFIG.backendURL+"/api/kv/list?prefix="+encodeURIComponent(p)); if(!r.ok)return []; const j=await r.json(); return j.keys||[]; }catch(e){ return []; } } try{ if(hasStore){const r=await window.storage.list(p); return r?r.keys:[];} }catch(e){} return Object.keys(MEM).filter(k=>k.startsWith(p)); }
+
+/* ===== Esquema de datos único + IDs (igual que el escritorio, migrable) ===== */
+const AD11={
+  schemaVersion:1,
+  slug(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"na";},
+  id(prefix){return prefix+"_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);},
+  pilotoId(s){return "pil_"+AD11.slug(s.piloto);},
+  motoId(s){return "mot_"+AD11.slug((s.marca||"")+"-"+(s.moto||""));},
+  eventoId(s){return "evt_"+AD11.slug((s.evento||s.circuito||"")+"-"+((s.fecha||(s.savedAt||"").slice(0,10))||""));},
+  normalize(s){ if(!s||typeof s!=="object")return s;
+    if(!s.schemaVersion) s.schemaVersion=AD11.schemaVersion;
+    if(!s.csvOriginal)   s.csvOriginal=[];
+    if(!s.sessionId) s.sessionId=(s.__key&&s.__key.indexOf("sesion:")===0)?s.__key.slice(7):AD11.id("ses");
+    if(!s.pilotoId)  s.pilotoId=AD11.pilotoId(s);
+    if(!s.motoId)    s.motoId=AD11.motoId(s);
+    if(!s.eventoId)  s.eventoId=AD11.eventoId(s);
+    if(!s.equipo)    s.equipo=s.team||"AD11 Racing";
+    if(!s.origen)    s.origen="movil";
+    return s; }
+};
+
+/* ---------- Estado de la sesión ---------- */
+function getState(){
+  const v=id=>$(id).value;
+  const circuito = circSel.value==="__otra__" ? ($("otroCirc").value||"Otro") : (circSel.value||"");
+  return {
+    team:$("teamName").value, sistema:sysSel.value, modelo:modelSel.value,
+    marca:$("marca").value, moto:v("moto"), anio:v("anio"), categoria:$("cat").value,
+    piloto:v("piloto")||"Piloto", circuito, vuelta:v("vuelta"),
+    tempAmb:v("tempAmb"), tempPista:v("tempPista"), estadoPista:$("estadoPista").value,
+    neuDelC:v("neuDelC"), neuDelP:v("neuDelP"), neuTraC:v("neuTraC"), neuTraP:v("neuTraP"),
+    gearing:v("gearing"), mejorVuelta:v("mejorVuelta"),
+    sensores:[...document.querySelectorAll('#sensors input:checked')].map(c=>c.value),
+    setupNotes:v("setupNotes"), sensaciones:v("sens"),
+    fuente:lastFuente, csvName:$("csvName").textContent, csv:(csvText||"").slice(0,80000),
+    componentes:{horq:$("cHorq").value,amort:$("cAmort").value,link:$("cLink").value,peso:$("cPeso").value,
+      del:{muelle:$("cMuelleD").value,precarga:$("sfPre").value,compL:$("sfCompL").value,compH:$("sfCompH").value,reb:$("sfReb").value,altura:$("sfHeight").value,aire:$("cAire").value,sagS:$("sfSagS").value,sagR:$("sfSagR").value},
+      tras:{muelle:$("cMuelleT").value,precarga:$("srPre").value,compL:$("srCompL").value,compH:$("srCompH").value,reb:$("srReb").value,altura:$("srHeight").value,csc:$("srCSC").value,sagS:$("srSagS").value,sagR:$("srSagR").value},
+      notas:$("compNotes").value},
+    neumatico:{marca:$("tBrand").value,modelo:$("tModel").value,presD:$("tPresD").value,presT:$("tPresT").value},
+    analysis:lastAnalysis, extract:lastExtract, ref:lastRef, tyre:lastTyre
+  };
+}
+function loadState(st,key){
+  currentKey=key||null;
+  if(st.sistema){sysSel.value=st.sistema;} fillModels(); if(st.modelo)modelSel.value=st.modelo;
+  if(st.marca)$("marca").value=st.marca; if(st.categoria)$("cat").value=st.categoria;
+  $("piloto").value=st.piloto||""; $("moto").value=st.moto||""; $("anio").value=st.anio||"";
+  const has=[...circSel.options].some(o=>o.value===st.circuito);
+  if(has){circSel.value=st.circuito;updateCircuit();}else if(st.circuito){addCustomCircuit(st.circuito);}else{circSel.value="";updateCircuit();}
+  $("vuelta").value=st.vuelta||"";
+  $("tempAmb").value=st.tempAmb||""; $("tempPista").value=st.tempPista||""; $("estadoPista").value=st.estadoPista||"Seco";
+  $("neuDelC").value=st.neuDelC||""; $("neuDelP").value=st.neuDelP||""; $("neuTraC").value=st.neuTraC||""; $("neuTraP").value=st.neuTraP||"";
+  $("gearing").value=st.gearing||""; $("mejorVuelta").value=st.mejorVuelta||"";
+  $("setupNotes").value=st.setupNotes||""; $("sens").value=st.sensaciones||"";
+  document.querySelectorAll('#sensors input').forEach(c=>{c.checked=(st.sensores||[]).includes(c.value);syncChk(c);});
+  csvText=st.csv||null; if(st.csvName){$("csvName").textContent=st.csvName;$("csvChip").style.display="flex";}
+  const cm=st.componentes||{}, dl=cm.del||{}, tr=cm.tras||{}, nu=st.neumatico||{};
+  $("cHorq").value=cm.horq||"";$("cAmort").value=cm.amort||"";$("cLink").value=cm.link||"";$("cPeso").value=cm.peso||"";$("compNotes").value=cm.notas||"";
+  $("cMuelleD").value=dl.muelle||cm.muelleD||"";$("sfPre").value=dl.precarga||"";$("sfCompL").value=dl.compL||"";$("sfCompH").value=dl.compH||"";$("sfReb").value=dl.reb||"";$("sfHeight").value=dl.altura||"";$("cAire").value=dl.aire||cm.aire||"";$("sfSagS").value=dl.sagS||"";$("sfSagR").value=dl.sagR||"";
+  $("cMuelleT").value=tr.muelle||cm.muelleT||"";$("srPre").value=tr.precarga||"";$("srCompL").value=tr.compL||"";$("srCompH").value=tr.compH||"";$("srReb").value=tr.reb||"";$("srHeight").value=tr.altura||"";$("srCSC").value=tr.csc||"";$("srSagS").value=tr.sagS||"";$("srSagR").value=tr.sagR||"";
+  $("tBrand").value=nu.marca||"Pirelli";$("tModel").value=nu.modelo||"";$("tPresD").value=nu.presD||"";$("tPresT").value=nu.presT||"";
+  if(st.ref){ lastRef=st.ref; renderRef(st.ref,"base"); } else { lastRef=null; $("refBox").style.display="none"; }
+  if(st.tyre){ lastTyre=st.tyre; renderTyre(st.tyre,"base"); } else { lastTyre=null; $("tyreBox").style.display="none"; }
+  if(st.extract){ lastExtract=st.extract; applyExtract(st.extract); } else { lastExtract=null; $("autoBox").style.display="none"; }
+  if(st.analysis){ render(st.analysis, st.fuente||"csv"); } else { $("out").style.display="none"; lastAnalysis=null; }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------- Guardar / archivo ---------- */
+async function persistSession(opts){
+  opts=opts||{};
+  ensureCustom();
+  const st=getState();
+  if(!st.circuito){ if(!opts.silentIfNoCircuit) showErr("Selecciona un circuito antes de guardar la sesión."); return; }
+  st.savedAt=st.savedAt||new Date().toISOString();
+  if(!currentKey) currentKey="sesion:"+Date.now();
+  if(!st.equipo) st.equipo=st.team||"AD11 Racing";
+  st.__key=currentKey; AD11.normalize(st);
+  // Conservar SIEMPRE el CSV original en Drive (no se borra nunca)
+  if(_GAS() && csvText && csvText.length && st.csvName && !(st.csvOriginal||[]).some(r=>r.name===st.csvName)){
+    try{ const j=await gasCall("csv_save",{name:(st.sessionId+"__"+st.csvName),content:csvText}); if(j&&!j.error){ st.csvOriginal=st.csvOriginal||[]; st.csvOriginal.push({name:st.csvName,fileId:j.fileId,url:j.url,bytes:j.bytes,savedAt:new Date().toISOString()}); } }catch(e){}
+  }
+  delete st.__key;
+  await sSet(currentKey, JSON.stringify(st));
+  const n=$("savednote"); n.textContent="Sesión guardada en el archivo ✓"; n.style.display="block"; setTimeout(()=>n.style.display="none",2600);
+  renderArchive();
+}
+$("btnSave").onclick=()=>persistSession();
+async function renderArchive(){
+  const keys=await sList("sesion:");
+  const items=[];
+  for(const k of keys){ const raw=await sGet(k); if(!raw)continue; try{const o=JSON.parse(raw);o.__key=k;AD11.normalize(o);items.push(o);}catch(e){} }
+  items.sort((a,b)=>(b.savedAt||"").localeCompare(a.savedAt||""));
+  const fil=$("archFilter"), cur=fil.value;
+  const circs=[...new Set(items.map(i=>i.circuito).filter(Boolean))];
+  fil.innerHTML='<option value="">Todos los circuitos</option>'+circs.map(c=>`<option>${esc(c)}</option>`).join("");
+  fil.value=cur;
+  const show = fil.value ? items.filter(i=>i.circuito===fil.value) : items;
+  const list=$("archList");
+  if(!show.length){ list.innerHTML='<div class="empty">'+((_GAS()||hasStore)?"Aún no hay sesiones guardadas. Analiza una sesión y pulsa “Guardar sesión”.":"El archivo permanente no está disponible en este visor; las sesiones se guardan solo mientras la página esté abierta. Usa “Exportar Excel/PDF” para conservarlas en tu equipo.")+'</div>'; return; }
+  list.innerHTML=show.map(i=>{
+    const d=i.savedAt?new Date(i.savedAt).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):"";
+    return `<div class="sess">
+      <div class="r1"><span class="cir">${esc(i.circuito||"—")}</span>
+        <span class="meta">${esc(i.marca||"")} ${esc(i.moto||"")} · ${esc(i.piloto||"")}${i.mejorVuelta?" · "+esc(i.mejorVuelta):""}</span>
+        <span class="date">${d}</span></div>
+      <div class="acts">
+        <button onclick="openSess('${i.__key}')">Abrir</button>
+        <button onclick="exSess('${i.__key}','xls')">Excel</button>
+        <button onclick="exSess('${i.__key}','pdf')">PDF</button>
+        <button class="del" onclick="delSess('${i.__key}')">Borrar</button>
+      </div></div>`;
+  }).join("");
+}
+$("archFilter").onchange=renderArchive;
+window.openSess=async k=>{ const raw=await sGet(k); if(raw)loadState(JSON.parse(raw),k); };
+window.delSess=async k=>{ await sDel(k); if(k===currentKey)currentKey=null; renderArchive(); };
+window.exSess=async (k,t)=>{ const raw=await sGet(k); if(!raw)return; const st=JSON.parse(raw); t==='xls'?exportXls(st):exportPdf(st); };
+
+/* ---------- Exportar ---------- */
+function fileBase(st){ const slug=(st.circuito||"sesion").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"").slice(0,40)||"sesion"; const d=(st.savedAt||new Date().toISOString()).slice(0,10); return slug+"_"+d; }
+$("btnXls").onclick=()=>{const st=getState();st.savedAt=st.savedAt||new Date().toISOString();exportXls(st);};
+$("btnPdf").onclick=()=>{const st=getState();st.savedAt=st.savedAt||new Date().toISOString();exportPdf(st);};
+
+function exportXls(st){
+  if(!window.XLSX){showErr("No se pudo cargar el generador de Excel. Revisa la conexión e inténtalo de nuevo.");return;}
+  const wb=XLSX.utils.book_new();
+  const ficha=[
+    ["INFORME DE TELEMETRÍA"],[st.team||""],[],
+    ["Fecha",st.savedAt||""],["Piloto",st.piloto||""],["Circuito",st.circuito||""],["Vuelta",st.vuelta||""],
+    ["Sistema",`${st.sistema||""} ${st.modelo||""}`],["Moto",`${st.marca||""} ${st.moto||""} ${st.anio||""}`],["Categoría",st.categoria||""],
+    [],["CONDICIONES"],["Temp. ambiente °C",st.tempAmb||""],["Temp. pista °C",st.tempPista||""],["Estado pista",st.estadoPista||""],
+    ["Neum. delantero",`${st.neuDelC||""} ${st.neuDelP||""}`],["Neum. trasero",`${st.neuTraC||""} ${st.neuTraP||""}`],
+    ["Desarrollo",st.gearing||""],["Mejor vuelta",st.mejorVuelta||""],["Sensores",(st.sensores||[]).join(", ")],["Fuente de datos",st.fuente||""]
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(ficha), "Ficha");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["SETUP / CAMBIOS"],[st.setupNotes||""],[],["SENSACIONES DEL PILOTO"],[st.sensaciones||""]]), "Setup y sensaciones");
+  const a=st.analysis;
+  const an=[["ANÁLISIS"],["Prioridad",a?a.veredicto:""],["Resumen",a?a.resumen:""],[],["Canal","Categoría","Ubicación","Observación","Causa","Acción","Confianza"]];
+  if(a&&a.hallazgos) a.hallazgos.forEach(h=>an.push([h.canal,CATNAME[h.categoria]||h.categoria,h.ubicacion,h.observacion,h.causa,h.accion,h.confianza]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(an), "Análisis");
+  if(st.extract&&st.extract.parametros&&st.extract.parametros.length){ const pr=[["PARAMETROS LEIDOS DE LA FOTO"],[st.extract.nota||""],[],["Nombre","Detectado","Recomendado","Estado","Por que"]]; st.extract.parametros.forEach(p=>pr.push([p.nombre,p.detectado,p.recomendado,p.estado,p.porque])); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pr), "Parametros auto"); }
+  const cm=st.componentes||{}, dl=cm.del||{}, tr=cm.tras||{}, nu=st.neumatico||{};
+  const comp=[["COMPONENTES"],["Horquilla",cm.horq||""],["Amortiguador",cm.amort||""],["Bieletas",cm.link||""],["Peso piloto",cm.peso||""],
+    [],["SUSPENSION DELANTERA"],["Muelle (N/mm)",dl.muelle||""],["Precarga",dl.precarga||""],["Compresion baja",dl.compL||""],["Compresion alta",dl.compH||""],["Rebote",dl.reb||""],["Altura en tijas",dl.altura||""],["Aire/aceite",dl.aire||""],["Sag estatico",dl.sagS||""],["Sag piloto",dl.sagR||""],
+    [],["SUSPENSION TRASERA"],["Muelle (N/mm)",tr.muelle||""],["Precarga",tr.precarga||""],["Compresion baja",tr.compL||""],["Compresion alta",tr.compH||""],["Rebote",tr.reb||""],["Altura/longitud",tr.altura||""],["CSC",tr.csc||""],["Sag estatico",tr.sagS||""],["Sag piloto",tr.sagR||""],
+    [],["Notas reglaje",cm.notas||""],
+    [],["NEUMATICO"],["Marca",nu.marca||""],["Modelo/compuesto",nu.modelo||""],["Presion frio del.",nu.presD||""],["Presion frio tras.",nu.presT||""]];
+  if(st.tyre){ comp.push([],["PRESION RECOMENDADA (fabricante)"],["Frio del/tras",((st.tyre.frio&&st.tyre.frio.del)||"")+" / "+((st.tyre.frio&&st.tyre.frio.tras)||"")],["Caliente del/tras",((st.tyre.caliente&&st.tyre.caliente.del)||"")+" / "+((st.tyre.caliente&&st.tyre.caliente.tras)||"")],["Manta",((st.tyre.manta&&st.tyre.manta.temp)||"")+" "+((st.tyre.manta&&st.tyre.manta.min)||"")],["Fuente",st.tyre.fuente||""]); if(st.tyre.evaluacion){ comp.push(["Eje","Tu presion","Estado","Por que"]); st.tyre.evaluacion.forEach(e=>comp.push([e.eje,e.tu,e.estado,e.porque])); } }
+  if(st.ref&&st.ref.items){ comp.push([],["REGLAJE BASE FABRICANTE"],[st.ref.resumen||""],["Ajuste","Recomendado","Por que"]); st.ref.items.forEach(i=>comp.push([i.nombre,i.valor,i.porque])); comp.push([],["Fuente",st.ref.fuente||""],["Aviso",st.ref.aviso||""]); }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(comp), "Componentes y reglaje");
+  XLSX.writeFile(wb, fileBase(st)+"_telemetria.xlsx");
+}
+
+function exportPdf(st){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){showErr("No se pudo cargar el generador de PDF. Revisa la conexión e inténtalo de nuevo.");return;}
+  const doc=new J({unit:"pt",format:"a4"}); const W=595, L=48; let y=54;
+  try{ const lg=$("logoImg").src; if(lg&&lg.indexOf("data:image")===0) doc.addImage(lg,"JPEG",W-L-46,y-16,46,46); }catch(e){}
+  doc.setFont("helvetica","bold");doc.setFontSize(16);doc.setTextColor(20);doc.text(st.team||"Equipo",L,y);
+  doc.setFontSize(10);doc.setTextColor(139,92,246);doc.text("INFORME DE TELEMETRÍA",L,y+16);
+  doc.setTextColor(120);doc.setFont("helvetica","normal");doc.setFontSize(9);
+  doc.text(st.savedAt?new Date(st.savedAt).toLocaleString('es-ES'):"",W-L,y,{align:"right"});
+  y+=38; doc.setDrawColor(215);doc.line(L,y,W-L,y); y+=20;
+  function kv(k,val){ if(val===undefined||val===null||String(val).trim()==="")return; if(y>780){doc.addPage();y=54;} doc.setFont("helvetica","bold");doc.setTextColor(90);doc.setFontSize(9);doc.text(String(k).toUpperCase(),L,y); doc.setFont("helvetica","normal");doc.setTextColor(30);doc.setFontSize(11); const lines=doc.splitTextToSize(String(val),W-L-160); doc.text(lines,L+150,y); y+=Math.max(16,lines.length*14)+2; }
+  kv("Piloto",st.piloto); kv("Circuito",(st.circuito||"")+(st.vuelta?" · vuelta "+st.vuelta:"")); kv("Moto",`${st.marca||""} ${st.moto||""} ${st.anio||""}`); kv("Sistema",`${st.sistema||""} ${st.modelo||""}`); kv("Categoría",st.categoria);
+  y+=4; kv("Condiciones",`Amb ${st.tempAmb||"-"}°C · Pista ${st.tempPista||"-"}°C · ${st.estadoPista||"-"}`); kv("Neumáticos",`Del ${st.neuDelC||"-"} ${st.neuDelP||""} | Tras ${st.neuTraC||"-"} ${st.neuTraP||""}`); kv("Desarrollo",st.gearing); kv("Mejor vuelta",st.mejorVuelta); kv("Sensores",(st.sensores||[]).join(", ")); kv("Setup / cambios",st.setupNotes); kv("Sensaciones",st.sensaciones);
+  const a=st.analysis;
+  if(a){ y+=6; if(y>770){doc.addPage();y=54;} doc.setDrawColor(215);doc.line(L,y,W-L,y); y+=18; doc.setFont("helvetica","bold");doc.setTextColor(139,92,246);doc.setFontSize(11);doc.text("ANÁLISIS",L,y);y+=18;
+    kv("Prioridad",a.veredicto); kv("Resumen",a.resumen);
+    (a.hallazgos||[]).forEach((h,i)=>{ if(y>760){doc.addPage();y=54;} doc.setFont("helvetica","bold");doc.setTextColor(25);doc.setFontSize(11); doc.text(doc.splitTextToSize(`${i+1}. ${h.canal||""}  [${CATNAME[h.categoria]||h.categoria||""}]  ${h.ubicacion||""}`,W-2*L),L,y); y+=16; kv("Observa",h.observacion); kv("Causa",h.causa); kv("Acción",h.accion); kv("Confianza",h.confianza); y+=4; });
+  }
+  { const cm=st.componentes||{}, dl=cm.del||{}, tr=cm.tras||{}, nu=st.neumatico||{};
+    if(cm.horq||cm.amort||cm.notas||dl.muelle||tr.muelle||nu.modelo||(st.ref&&st.ref.items)||st.tyre){ if(y>700){doc.addPage();y=54;} doc.setDrawColor(215);doc.line(L,y,W-L,y);y+=18; doc.setFont("helvetica","bold");doc.setTextColor(139,92,246);doc.setFontSize(11);doc.text("COMPONENTES, SUSPENSION Y NEUMATICO",L,y);y+=18;
+      kv("Horquilla",cm.horq); kv("Amortiguador",cm.amort); kv("Bieletas",cm.link); kv("Peso piloto",cm.peso);
+      kv("Susp. del.","muelle "+(dl.muelle||"-")+", precarga "+(dl.precarga||"-")+", compB "+(dl.compL||"-")+", compA "+(dl.compH||"-")+", rebote "+(dl.reb||"-")+", altura "+(dl.altura||"-")+", aire "+(dl.aire||"-")+", sag "+(dl.sagS||"-")+"/"+(dl.sagR||"-"));
+      kv("Susp. tras.","muelle "+(tr.muelle||"-")+", precarga "+(tr.precarga||"-")+", compB "+(tr.compL||"-")+", compA "+(tr.compH||"-")+", rebote "+(tr.reb||"-")+", altura "+(tr.altura||"-")+", CSC "+(tr.csc||"-")+", sag "+(tr.sagS||"-")+"/"+(tr.sagR||"-"));
+      kv("Notas reglaje",cm.notas);
+      kv("Neumatico",(nu.marca||"")+" "+(nu.modelo||"")+" | frio del "+(nu.presD||"-")+" tras "+(nu.presT||"-")+" bar");
+      if(st.tyre){ if(st.tyre.frio) kv("Rec. frio",(st.tyre.frio.del||"")+" / "+(st.tyre.frio.tras||"")); if(st.tyre.caliente) kv("Rec. caliente",(st.tyre.caliente.del||"")+" / "+(st.tyre.caliente.tras||"")); if(st.tyre.manta) kv("Manta",(st.tyre.manta.temp||"")+" "+(st.tyre.manta.min||"")); (st.tyre.evaluacion||[]).forEach(e=>kv(e.eje,(e.tu||"")+" -> "+(e.estado||""))); kv("Fuente neu.",st.tyre.fuente); }
+      if(st.ref&&st.ref.items){ kv("Ref. fabricante",st.ref.resumen); st.ref.items.forEach(it=>kv(it.nombre,it.valor)); kv("Fuente",st.ref.fuente); kv("Aviso",st.ref.aviso); }
+    } }
+  if(st.extract&&st.extract.parametros&&st.extract.parametros.length){ if(y>720){doc.addPage();y=54;} doc.setDrawColor(215);doc.line(L,y,W-L,y);y+=18; doc.setFont("helvetica","bold");doc.setTextColor(139,92,246);doc.setFontSize(11);doc.text("PARAMETROS (AUTO)",L,y);y+=18; st.extract.parametros.forEach(p=>{ if(y>760){doc.addPage();y=54;} doc.setFont("helvetica","bold");doc.setTextColor(25);doc.setFontSize(10.5);doc.text(doc.splitTextToSize((p.nombre||"")+": "+(p.detectado||"n/d")+"  ["+(p.estado||"")+"]",W-2*L),L,y);y+=14; kv("Recomendado",p.recomendado); kv("Por que",p.porque); y+=2; }); }
+  if(y>740){doc.addPage();y=54;}
+  doc.setFont("helvetica","italic");doc.setTextColor(150);doc.setFontSize(8);
+  const src = st.fuente==="csv" ? "Datos exactos desde CSV." : (st.fuente&&st.fuente.indexOf("foto")>=0 ? "Lectura parcial desde foto." : "Basado en sensaciones del piloto.");
+  doc.text(doc.splitTextToSize("Fuente: "+src+"  ·  Generado por el módulo Telemetría · "+(st.team||""),W-2*L),L,y+8);
+  doc.save(fileBase(st)+"_telemetria.pdf");
+}
+
+/* ---------- Login (Apps Script) ---------- */
+async function doLogin(){
+  const u=$("loginUser").value.trim(), p=$("loginPass").value; $("loginErr").textContent="";
+  try{
+    const j=await gasCall("login",{user:u,pass:p});
+    if(!j||!j.token){ $("loginErr").textContent=(j&&j.error)?("Error: "+j.error):"Usuario o clave incorrectos."; return; }
+    tokSet(j.token); if(j.role)ROLE=j.role;
+    $("loginOverlay").style.display="none"; const lg=$("logoutBtn"); if(lg)lg.style.display="";
+    await loadUI();
+  }catch(e){ $("loginErr").textContent="No se pudo conectar con el servidor. Revisa la URL del Apps Script."; }
+}
+function logout(){ tokSet(null); const lg=$("logoutBtn"); if(lg)lg.style.display="none"; if(_GAS())$("loginOverlay").style.display="flex"; }
+function maybeLogin(){
+  if(!_GAS())return;
+  TOKEN=tokGet();
+  const lb=$("loginBtn"), lp=$("loginPass"), lg=$("logoutBtn"), lo=$("loginOverlay");
+  if(lb&&!lb._b){ lb._b=1; lb.onclick=doLogin; if(lp)lp.addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();}); if(lg)lg.onclick=logout; }
+  if(TOKEN){ if(lg)lg.style.display=""; } else if(lo){ lo.style.display="flex"; }
+}
+
+/* ---------- Init ---------- */
+async function loadUI(){
+  let lg=DEFAULT_LOGO;
+  try{ const st=await sGet("ui:logo"); if(st)lg=st; const tn=await sGet("ui:team"); if(tn)$("teamName").value=tn; const cc=await sGet("ui:customCircuits"); if(cc){ customCircuits=JSON.parse(cc)||[]; rebuildCustom(); } }catch(e){}
+  if(lg){$("logoImg").src=lg;$("logoImg").style.display="block";$("logoPh").style.display="none";}
+  await renderArchive();
+}
+async function __initApp(){ maybeLogin(); if(!_GAS()||TOKEN){ await loadUI(); } }
+if(document.readyState!=="loading"){ __initApp(); } else { document.addEventListener("DOMContentLoaded", __initApp); }
+</script>
+<div id="loginOverlay" style="display:none;position:fixed;inset:0;background:rgba(8,10,16,.92);z-index:99999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg2,#10151D);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:24px;width:340px;max-width:92vw;box-shadow:0 24px 70px rgba(0,0,0,.6)">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;margin-bottom:2px">Iniciar sesión</div>
+    <div style="font-family:'IBM Plex Mono',monospace;color:#7C8AA0;font-size:12px;margin-bottom:16px">AD11 Racing · acceso del equipo</div>
+    <label style="font-size:12px;color:#7C8AA0">Usuario</label>
+    <input id="loginUser" autocomplete="username" style="width:100%;margin:4px 0 12px;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0B0E13;color:#fff;font-size:15px;box-sizing:border-box">
+    <label style="font-size:12px;color:#7C8AA0">Clave</label>
+    <input id="loginPass" type="password" autocomplete="current-password" style="width:100%;margin:4px 0 4px;padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#0B0E13;color:#fff;font-size:15px;box-sizing:border-box">
+    <div id="loginErr" style="color:#FF6B6B;font-size:12px;min-height:16px;margin:2px 0 10px"></div>
+    <button id="loginBtn" style="width:100%;padding:12px;border:0;border-radius:10px;background:linear-gradient(135deg,#8B5CF6,#27D3B6);color:#06121F;font-weight:700;font-size:15px;cursor:pointer">Entrar</button>
+  </div>
+</div>
+</body>
+</html>
