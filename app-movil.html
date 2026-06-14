@@ -990,6 +990,18 @@ async function persistSession(opts){
   if(_GAS() && csvText && csvText.length && st.csvName && !(st.csvOriginal||[]).some(r=>r.name===st.csvName)){
     try{ const j=await gasCall("csv_save",{name:(st.sessionId+"__"+st.csvName),content:csvText}); if(j&&!j.error){ st.csvOriginal=st.csvOriginal||[]; st.csvOriginal.push({name:st.csvName,fileId:j.fileId,url:j.url,bytes:j.bytes,savedAt:new Date().toISOString()}); } }catch(e){}
   }
+  // Conservar SIEMPRE la foto/PDF original en Drive (no se borra nunca)
+  if(_GAS() && imgB64){
+    try{
+      const kind=isPdf?"pdf":"img";
+      if(!(st.fotosOriginales||[]).some(r=>r.kind===kind)){
+        const ext=isPdf?"pdf":(((imgMime||"").split("/")[1])||"jpg");
+        const fname=st.sessionId+"__doc."+ext;
+        const j=await gasCall("file_save",{name:fname,mime:(isPdf?"application/pdf":(imgMime||"image/jpeg")),data:imgB64});
+        if(j&&!j.error){ st.fotosOriginales=st.fotosOriginales||[]; st.fotosOriginales.push({kind:kind,name:fname,fileId:j.fileId,url:j.url,bytes:j.bytes,savedAt:new Date().toISOString()}); }
+      }
+    }catch(e){}
+  }
   delete st.__key;
   await sSet(currentKey, JSON.stringify(st));
   const n=$("savednote"); n.textContent="Sesión guardada en el archivo ✓"; n.style.display="block"; setTimeout(()=>n.style.display="none",2600);
