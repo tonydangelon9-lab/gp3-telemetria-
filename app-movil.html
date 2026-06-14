@@ -184,6 +184,14 @@ input.sm{padding:9px 10px;font-size:13px}
 .param .why{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:9px}
 .subt{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;color:var(--txt);margin:18px 0 10px;display:flex;align-items:center;gap:10px}
 .subt .ln{flex:1;height:1px;background:var(--line)}
+.src-file{border-left:4px solid #27D3B6 !important}
+.src-ai{border-left:4px solid #F5C518 !important}
+.src-def{border-left:4px solid #5b6472 !important}
+.src-warn{border-left:4px solid #FF6B6B !important}
+.srcleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--faint);margin:12px 0 0}
+.srcleg span{display:inline-flex;align-items:center;gap:5px}
+.srcleg i{width:11px;height:11px;border-radius:3px;display:inline-block}
+.minibtn{padding:8px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.05);color:#fff;font-size:12px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -274,6 +282,7 @@ input.sm{padding:9px 10px;font-size:13px}
             <div class="h">Hoja de reglaje, pantalla, trazas… (foto o PDF)</div>
           </div>
           <div class="preview" id="prevImg"><img id="img" alt="vista previa"></div>
+          <button class="minibtn" id="btnClearImg" style="margin-top:6px;display:none">✕ Quitar foto/PDF</button>
         </div>
         <div>
           <div class="drop" id="dropCsv">
@@ -282,10 +291,13 @@ input.sm{padding:9px 10px;font-size:13px}
             <div class="h">CSV exportado (Race Studio, Danas…)</div>
           </div>
           <div class="filechip" id="csvChip">📄 <span id="csvName"></span></div>
+          <button class="minibtn" id="btnClearCsv" style="margin-top:6px;display:none">✕ Quitar CSV</button>
         </div>
       </div>
       <p style="font-size:12px;color:var(--faint);margin:12px 0 0;line-height:1.6">El CSV da números exactos vuelta a vuelta. La foto se lee de la imagen — útil, pero menos precisa. Con cualquiera de los dos arrancamos.</p>
       <button class="btn2" id="btnAuto" style="width:100%;margin-top:14px" disabled>✨ Leer foto/PDF y autocompletar</button>
+      <div class="srcleg"><span><i style="background:#27D3B6"></i>leído de archivo</span><span><i style="background:#F5C518"></i>estimado IA</span><span><i style="background:#5b6472"></i>ejemplo</span><span><i style="background:#FF6B6B"></i>revisar</span></div>
+      <button class="minibtn" id="btnClearImp" style="width:100%;margin-top:10px">🧹 Limpiar datos importados</button>
     </div>
   </div>
 
@@ -569,12 +581,12 @@ const dropImg=$("dropImg");
 let isPdf=false;
 const imgInput=document.createElement("input");imgInput.type="file";imgInput.accept="image/*,application/pdf";
 dropImg.onclick=()=>imgInput.click();
-imgInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgB64=r.result.split(",")[1];imgMime=f.type;isPdf=(f.type==="application/pdf");if(isPdf){$("prevImg").style.display="none";}else{$("img").src=r.result;$("prevImg").style.display="block";}dropImg.classList.add("has");dropImg.querySelector(".t").textContent=isPdf?("PDF cargado ✓ ("+f.name+")"):"Foto cargada ✓";$("btnAuto").disabled=false;};r.readAsDataURL(f);};
+imgInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgB64=r.result.split(",")[1];imgMime=f.type;isPdf=(f.type==="application/pdf");if(isPdf){$("prevImg").style.display="none";}else{$("img").src=r.result;$("prevImg").style.display="block";}dropImg.classList.add("has");dropImg.querySelector(".t").textContent=isPdf?("PDF cargado ✓ ("+f.name+")"):"Foto cargada ✓";const cb=$("btnClearImg");if(cb)cb.style.display="";$("btnAuto").disabled=false;};r.readAsDataURL(f);};
 
 const dropCsv=$("dropCsv");
 const csvInput=document.createElement("input");csvInput.type="file";csvInput.accept=".csv,.txt,text/csv,text/plain";
 dropCsv.onclick=()=>csvInput.click();
-csvInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{csvText=r.result;$("csvName").textContent=f.name;$("csvChip").style.display="flex";dropCsv.classList.add("has");dropCsv.querySelector(".t").textContent="Archivo cargado ✓";};r.readAsText(f);};
+csvInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{csvText=r.result;$("csvName").textContent=f.name;$("csvChip").style.display="flex";dropCsv.classList.add("has");dropCsv.querySelector(".t").textContent="Archivo cargado ✓";const cb=$("btnClearCsv");if(cb)cb.style.display="";};r.readAsText(f);};
 
 // ---- Voz (dictado en español) ----
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -718,15 +730,15 @@ function applyExtract(j){
     document.querySelectorAll('#sensors input').forEach(c=>{ const hit=j.sensores_detectados.some(x=>norm(x).includes(norm(c.value))||norm(c.value).includes(norm(x))); if(hit){c.checked=true;syncChk(c);} });
   }
   const fc=j.ficha||{};
-  const setIf=(id,val)=>{ const el=$(id); if(val&&el&&!el.value)el.value=val; };
-  if(fc.piloto&&$("piloto")&&!$("piloto").value) selSet("piloto",fc.piloto);
-  if(fc.marca) selSet("marca",fc.marca);
+  const setIf=(id,val)=>{ const el=$(id); if(val&&el&&!el.value){ el.value=val; setSrc(id,"file"); } };
+  if(fc.piloto&&$("piloto")&&!$("piloto").value){ selSet("piloto",fc.piloto); setSrc("piloto","file"); }
+  if(fc.marca){ selSet("marca",fc.marca); setSrc("marca","file"); }
   setIf("moto",fc.modelo); setIf("anio",fc.anio);
-  if(fc.categoria&&$("cat")&&!$("cat").value&&[...$("cat").options].some(o=>o.value===fc.categoria)) $("cat").value=fc.categoria;
-  if(fc.circuito&&circSel&&!circSel.value){ if([...circSel.options].some(o=>o.value===fc.circuito)){circSel.value=fc.circuito;updateCircuit();}else{addCustomCircuit(fc.circuito);} }
+  if(fc.categoria&&$("cat")&&!$("cat").value&&[...$("cat").options].some(o=>o.value===fc.categoria)){ $("cat").value=fc.categoria; setSrc("cat","file"); }
+  if(fc.circuito&&circSel&&!circSel.value){ if([...circSel.options].some(o=>o.value===fc.circuito)){circSel.value=fc.circuito;updateCircuit();}else{addCustomCircuit(fc.circuito);} if(circSel.id)setSrc(circSel.id,"file"); }
   setIf("mejorVuelta",fc.mejorVuelta); setIf("vuelta",fc.vuelta);
   setIf("tempPista",fc.tempPista); setIf("tempAmb",fc.tempAmb);
-  if(fc.neuMarca&&$("tBrand")) selSet("tBrand",fc.neuMarca);
+  if(fc.neuMarca&&$("tBrand")){ selSet("tBrand",fc.neuMarca); setSrc("tBrand","file"); }
   setIf("tModel",fc.neuModelo); setIf("tPresD",fc.presD); setIf("tPresT",fc.presT);
   $("autoNote").textContent=(j.legible===false?"\u26A0 ":"")+(j.nota||"");
   const colmap={ok:"--data",atencion:"--glow",alto:"--motor",bajo:"--susp","n/d":"--faint"};
@@ -896,6 +908,20 @@ function fillMotoBase(){ const sel=$("motoBase"); if(!sel)return; const names=mo
 function applyMotoBase(){ const l=$("motoBase").value; if(!l)return; const rec=MOTOS.find(m=>motoLabelRec(m)===l); if(rec){ selSet("marca",rec.marca); $("moto").value=rec.modelo||""; if(rec.anio)$("anio").value=rec.anio; } else { const parts=l.split(" "); selSet("marca",parts[0]||""); $("moto").value=parts.slice(1).join(" "); } }
 async function addPilotoPrompt(){ const n=(prompt("Nombre del nuevo piloto:")||"").trim(); if(!n)return; if(_GAS()){ const pid=pilIdOf(n); try{ const ex=await sGet("piloto:"+pid); if(!ex) await savePilotoRec({pilotoId:pid,nombre:n,deleted:false,origen:"movil"}); }catch(e){} await loadPilotos(); } fillPilotoSelect(); selSet("piloto",n); }
 (function wireBasesMovil(){ const pa=$("pilAdd"); if(pa)pa.onclick=addPilotoPrompt; const mb=$("motoBase"); if(mb)mb.onchange=applyMotoBase; })();
+
+/* ===== Origen de los datos (colores) + edición/borrado ===== */
+function setSrc(id,src){ const el=$(id); if(!el)return; el.classList.remove("src-file","src-ai","src-def","src-warn"); if(src)el.classList.add("src-"+src); el.dataset.src=src||""; }
+function _clearTag(t){ if(t&&t.dataset&&t.dataset.src){ t.classList.remove("src-file","src-ai","src-def","src-warn"); t.dataset.src=""; } }
+document.addEventListener("input",e=>_clearTag(e.target),true);
+document.addEventListener("change",e=>_clearTag(e.target),true);
+function clearImg(){ imgB64=null; isPdf=false; const im=$("img"); if(im)im.src=""; if($("prevImg"))$("prevImg").style.display="none"; if(typeof dropImg!=="undefined"&&dropImg){ dropImg.classList.remove("has"); const t=dropImg.querySelector(".t"); if(t)t.textContent="Foto o PDF de la sesión"; } if($("btnAuto"))$("btnAuto").disabled=true; if($("btnClearImg"))$("btnClearImg").style.display="none"; }
+function clearCsv(){ csvText=""; if($("csvName"))$("csvName").textContent=""; if($("csvChip"))$("csvChip").style.display="none"; if(typeof dropCsv!=="undefined"&&dropCsv){ dropCsv.classList.remove("has"); const t=dropCsv.querySelector(".t"); if(t)t.textContent="Archivo de datos"; } if($("btnClearCsv"))$("btnClearCsv").style.display="none"; }
+function clearImported(){
+  document.querySelectorAll('[data-src="file"],[data-src="ai"]').forEach(el=>{ el.value=""; el.classList.remove("src-file","src-ai","src-def","src-warn"); el.dataset.src=""; });
+  lastExtract=null; if($("autoBox"))$("autoBox").style.display="none"; if($("autoParams"))$("autoParams").innerHTML=""; if($("autoNote"))$("autoNote").textContent="";
+  clearImg(); clearCsv();
+}
+(function wireEdicion(){ const a=$("btnClearImg"); if(a)a.onclick=clearImg; const b=$("btnClearCsv"); if(b)b.onclick=clearCsv; const c=$("btnClearImp"); if(c)c.onclick=()=>{ if(confirm("¿Limpiar solo los datos importados (foto/PDF/CSV y lo autollenado)?\nNo borra lo que escribiste a mano ni la sesión.")) clearImported(); }; })();
 
 /* ---------- Estado de la sesión ---------- */
 function getState(){
