@@ -270,8 +270,8 @@ input.sm{padding:9px 10px;font-size:13px}
         <div>
           <div class="drop" id="dropImg">
             <div class="ic">📈</div>
-            <div class="t">Foto de los gráficos</div>
-            <div class="h">Pantalla / trazas de freno, suspensión…</div>
+            <div class="t">Foto o PDF de la sesión</div>
+            <div class="h">Hoja de reglaje, pantalla, trazas… (foto o PDF)</div>
           </div>
           <div class="preview" id="prevImg"><img id="img" alt="vista previa"></div>
         </div>
@@ -285,13 +285,13 @@ input.sm{padding:9px 10px;font-size:13px}
         </div>
       </div>
       <p style="font-size:12px;color:var(--faint);margin:12px 0 0;line-height:1.6">El CSV da números exactos vuelta a vuelta. La foto se lee de la imagen — útil, pero menos precisa. Con cualquiera de los dos arrancamos.</p>
-      <button class="btn2" id="btnAuto" style="width:100%;margin-top:14px" disabled>📷 Leer foto y autocompletar parámetros</button>
+      <button class="btn2" id="btnAuto" style="width:100%;margin-top:14px" disabled>✨ Leer foto/PDF y autocompletar</button>
     </div>
   </div>
 
   <!-- AUTO-LLENADO -->
   <div class="autobox" id="autoBox">
-    <div class="autohead"><span class="b">AUTO</span> Parámetros leídos de la foto</div>
+    <div class="autohead"><span class="b">AUTO</span> Datos leídos del documento</div>
     <p class="resumen" id="autoNote" style="margin-bottom:12px"></p>
     <div id="autoParams"></div>
   </div>
@@ -566,9 +566,10 @@ tick();setInterval(tick,1000);
 // ---- Uploads ----
 let imgB64=null,imgMime=null,csvText=null;
 const dropImg=$("dropImg");
-const imgInput=document.createElement("input");imgInput.type="file";imgInput.accept="image/*";
+let isPdf=false;
+const imgInput=document.createElement("input");imgInput.type="file";imgInput.accept="image/*,application/pdf";
 dropImg.onclick=()=>imgInput.click();
-imgInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgB64=r.result.split(",")[1];imgMime=f.type;$("img").src=r.result;$("prevImg").style.display="block";dropImg.classList.add("has");dropImg.querySelector(".t").textContent="Foto cargada ✓";$("btnAuto").disabled=false;};r.readAsDataURL(f);};
+imgInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{imgB64=r.result.split(",")[1];imgMime=f.type;isPdf=(f.type==="application/pdf");if(isPdf){$("prevImg").style.display="none";}else{$("img").src=r.result;$("prevImg").style.display="block";}dropImg.classList.add("has");dropImg.querySelector(".t").textContent=isPdf?("PDF cargado ✓ ("+f.name+")"):"Foto cargada ✓";$("btnAuto").disabled=false;};r.readAsDataURL(f);};
 
 const dropCsv=$("dropCsv");
 const csvInput=document.createElement("input");csvInput.type="file";csvInput.accept=".csv,.txt,text/csv,text/plain";
@@ -689,8 +690,8 @@ function showErr(m){const e=$("err");e.textContent=m;e.style.display="block";e.s
 $("btnAuto").onclick=autofill;
 function norm(s){return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
 async function autofill(){
-  if(!imgB64){ showErr("Carga primero la foto de la telemetría."); return; }
-  const btn=$("btnAuto"); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Leyendo foto…';
+  if(!imgB64){ showErr("Carga primero una foto o un PDF de la sesión."); return; }
+  const btn=$("btnAuto"); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Leyendo…';
   const ctx=`Moto ${$("marca").value} ${$("moto").value} ${$("anio").value||""}, ${$("cat").value}, sistema ${sysSel.value} ${modelSel.value}, piloto ${$("piloto").value||""}.`;
   const labels=[...document.querySelectorAll('#sensors input')].map(c=>c.value).join("; ");
   const sys=`Eres ingeniero de telemetria de motos de competicion. Lee la FOTO de la pantalla/datos de telemetria y EXTRAE de forma exhaustiva los parametros visibles. Reglas:
@@ -699,15 +700,17 @@ async function autofill(){
 - Detecta que sensores hay (freno, suspension del/tras, TPS/gas, RPM, velocidad, angulo, temp. aire/agua, lambda, GPS, presion de neumatico).
 - "recomendado": solo si hay base de ingenieria real; si depende del setup/neumatico/pista, escribe esa condicion en vez de un numero inventado.
 - "porque": una frase de por que ese valor importa o que implica.
+- En "ficha" rellena los datos de identificacion de la sesion que VEAS: piloto, marca y modelo de la moto, año, categoria, circuito, mejor vuelta, temperatura de pista y ambiente, marca/modelo de neumatico y presiones delantera/trasera. Si un dato no aparece, dejalo en "".
 Devuelve SOLO JSON (sin markdown). Maximo 12 parametros, textos breves:
-{"legible":true,"nota":"","sensores_detectados":["..."],"ficha":{"mejorVuelta":"","vuelta":"","tempPista":"","tempAmb":""},"parametros":[{"nombre":"","detectado":"","recomendado":"","estado":"ok|alto|bajo|atencion|n/d","fuente_dato":"exacto|estimado|leido_imagen|no_legible","porque":""}]}
+{"legible":true,"nota":"","sensores_detectados":["..."],"ficha":{"piloto":"","marca":"","modelo":"","anio":"","categoria":"","circuito":"","mejorVuelta":"","vuelta":"","tempPista":"","tempAmb":"","neuMarca":"","neuModelo":"","presD":"","presT":""},"parametros":[{"nombre":"","detectado":"","recomendado":"","estado":"ok|alto|bajo|atencion|n/d","fuente_dato":"exacto|estimado|leido_imagen|no_legible","porque":""}]}
 Para sensores_detectados usa, cuando apliquen, estos nombres exactos: ${labels}.`;
-  const content=[{type:"image",source:{type:"base64",media_type:imgMime,data:imgB64}},{type:"text",text:"CONTEXTO: "+ctx+"\nLee la foto y autocompleta todos los parametros que veas."}];
+  const block = isPdf ? {type:"document",source:{type:"base64",media_type:"application/pdf",data:imgB64}} : {type:"image",source:{type:"base64",media_type:imgMime,data:imgB64}};
+  const content=[block,{type:"text",text:"CONTEXTO: "+ctx+"\nLee el documento/foto y rellena la ficha y todos los parametros que veas."}];
   try{
     const data=await callAI({system:sys,messages:[{role:"user",content}]});
     let raw=(data.content||[]).map(b=>b.text||"").join("").trim().replace(/```json|```/g,"").trim();
     const j=JSON.parse(raw); lastExtract=j; applyExtract(j);
-  }catch(e){ showErr("No se pudo leer la foto automaticamente. Prueba con una imagen mas nitida o mas cercana a los datos."); }
+  }catch(e){ showErr("No se pudo leer el documento automaticamente. Prueba con una foto mas nitida, o un PDF mas claro."); }
   finally{ btn.disabled=false; btn.textContent=old; }
 }
 function applyExtract(j){
@@ -715,10 +718,16 @@ function applyExtract(j){
     document.querySelectorAll('#sensors input').forEach(c=>{ const hit=j.sensores_detectados.some(x=>norm(x).includes(norm(c.value))||norm(c.value).includes(norm(x))); if(hit){c.checked=true;syncChk(c);} });
   }
   const fc=j.ficha||{};
-  if(fc.mejorVuelta&&!$("mejorVuelta").value)$("mejorVuelta").value=fc.mejorVuelta;
-  if(fc.vuelta&&!$("vuelta").value)$("vuelta").value=fc.vuelta;
-  if(fc.tempPista&&!$("tempPista").value)$("tempPista").value=fc.tempPista;
-  if(fc.tempAmb&&!$("tempAmb").value)$("tempAmb").value=fc.tempAmb;
+  const setIf=(id,val)=>{ const el=$(id); if(val&&el&&!el.value)el.value=val; };
+  if(fc.piloto&&$("piloto")&&!$("piloto").value) selSet("piloto",fc.piloto);
+  if(fc.marca) selSet("marca",fc.marca);
+  setIf("moto",fc.modelo); setIf("anio",fc.anio);
+  if(fc.categoria&&$("cat")&&!$("cat").value&&[...$("cat").options].some(o=>o.value===fc.categoria)) $("cat").value=fc.categoria;
+  if(fc.circuito&&circSel&&!circSel.value){ if([...circSel.options].some(o=>o.value===fc.circuito)){circSel.value=fc.circuito;updateCircuit();}else{addCustomCircuit(fc.circuito);} }
+  setIf("mejorVuelta",fc.mejorVuelta); setIf("vuelta",fc.vuelta);
+  setIf("tempPista",fc.tempPista); setIf("tempAmb",fc.tempAmb);
+  if(fc.neuMarca&&$("tBrand")) selSet("tBrand",fc.neuMarca);
+  setIf("tModel",fc.neuModelo); setIf("tPresD",fc.presD); setIf("tPresT",fc.presT);
   $("autoNote").textContent=(j.legible===false?"\u26A0 ":"")+(j.nota||"");
   const colmap={ok:"--data",atencion:"--glow",alto:"--motor",bajo:"--susp","n/d":"--faint"};
   $("autoParams").innerHTML=(j.parametros||[]).map(p=>{
